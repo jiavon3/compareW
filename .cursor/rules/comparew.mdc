@@ -1,0 +1,15 @@
+---
+description: CompareW 产品约定与会话记忆（换路径后仍生效）
+alwaysApply: true
+---
+
+# CompareW
+
+先读 `docs/PROJECT_MEMORY.md`，再改代码。
+
+- 栈：Tauri 2 + React + TypeScript + Vite；diff 只在 Rust。不要换 Electron/Java。
+- 界面 zh-CN。直接做完给结果，不要反复确认。
+- 不要重做整套皮肤。保持纸色比对区、深色顶栏、一致黑色、不一致红色 `#c62828`。
+- 不要恢复金色文件夹图标、向下箭头、frontend-design 那两套配色。
+- 文本会话和文件夹会话切换时必须保留结果。清空只清当前这次。
+- 前端不算 diff、不哈希、不读 zip。
