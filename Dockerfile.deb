@@ -1,0 +1,53 @@
+FROM docker.m.daocloud.io/library/ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PATH="/usr/local/node/bin:/root/.cargo/bin:${PATH}" \
+    CARGO_TERM_COLOR=always \
+    RUSTUP_DIST_SERVER=https://rsproxy.cn \
+    RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup \
+    npm_config_registry=https://registry.npmmirror.com
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    wget \
+    xz-utils \
+    file \
+    build-essential \
+    pkg-config \
+    libwebkit2gtk-4.1-dev \
+    libgtk-3-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    libssl-dev \
+    libxdo-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY build-assets/node-v22.20.0-linux-x64.tar.xz /tmp/node.tar.xz
+RUN tar -xJf /tmp/node.tar.xz -C /usr/local \
+    && mv /usr/local/node-v22.20.0-linux-x64 /usr/local/node \
+    && rm /tmp/node.tar.xz
+
+COPY build-assets/rustup-init /tmp/rustup-init
+RUN chmod +x /tmp/rustup-init \
+    && mkdir -p /root/.cargo \
+    && printf '%s\n' \
+      '[source.crates-io]' \
+      'replace-with = "rsproxy-sparse"' \
+      '[source.rsproxy-sparse]' \
+      'registry = "sparse+https://rsproxy.cn/index/"' \
+      '[net]' \
+      'git-fetch-with-cli = true' \
+      > /root/.cargo/config.toml \
+    && /tmp/rustup-init -y --default-toolchain stable \
+    && rm /tmp/rustup-init
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run tauri build -- --bundles deb \
+    && mkdir -p /out \
+    && find src-tauri/target -name '*.deb' -exec cp {} /out/ \;
+
+CMD ["bash", "-lc", "ls -lh /out"]
