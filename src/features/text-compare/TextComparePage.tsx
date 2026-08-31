@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import DiffRail from "../../components/DiffRail";
 import PathEditor, { normalizePath } from "../../components/PathEditor";
+import { pinNav } from "../../lib/diffNav";
 import { compareTexts, getDiffRows, readTextFile } from "../../lib/tauri";
 import SessionTabs from "../folder-compare/SessionTabs";
 import type { Session } from "../folder-compare/SessionTabs";
@@ -269,6 +270,9 @@ export default function TextComparePage({
     onNewSession?.();
   }
 
+  const topRow = Math.floor(scrollTop / LINE_BOX_PX);
+  const pins = pinNav(summary.diffMarks, topRow, filter);
+
   return (
     <div className="bench">
       <header className="chrome">
@@ -381,6 +385,9 @@ export default function TextComparePage({
           viewHeight={viewHeight}
           linePx={LINE_BOX_PX}
           onJump={jumpToRow}
+          hasClusters={pins.hasClusters}
+          prevRow={pins.prevRow}
+          nextRow={pins.nextRow}
         />
         <section className="pane">
           <ComparePane
