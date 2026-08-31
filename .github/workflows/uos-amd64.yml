@@ -13,7 +13,7 @@ jobs:
   uos-amd64:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Linux dependencies
         run: |
@@ -27,7 +27,7 @@ jobs:
             libssl-dev
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -57,7 +57,7 @@ jobs:
           args: --bundles deb
 
       - name: Upload deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: CompareW-uos-amd64
           path: src-tauri/target/release/bundle/deb/*.deb
