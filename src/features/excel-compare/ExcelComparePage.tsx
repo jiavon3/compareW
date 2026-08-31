@@ -3,6 +3,7 @@ import type { UIEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import DiffRail from "../../components/DiffRail";
 import PathEditor, { normalizePath } from "../../components/PathEditor";
+import { pinNav } from "../../lib/diffNav";
 import { compareExcel, getExcelRows } from "../../lib/tauri";
 import SessionTabs from "../folder-compare/SessionTabs";
 import type { Session } from "../folder-compare/SessionTabs";
@@ -227,6 +228,8 @@ export default function ExcelComparePage({
   }
 
   const marks = filter === "all" && sheet ? sheet.dirtyRows : [];
+  const topRow = Math.floor(scrollTop / EXCEL_ROW_PX);
+  const pins = pinNav(sheet ? sheet.dirtyRows : [], topRow, filter);
   const emptyText =
     summary.sheets.length === 0 ? "输入路径后回车，或选择 Excel" : "没有可显示的行";
 
@@ -341,6 +344,9 @@ export default function ExcelComparePage({
           viewHeight={viewHeight}
           linePx={EXCEL_ROW_PX}
           onJump={jumpToRow}
+          hasClusters={pins.hasClusters}
+          prevRow={pins.prevRow}
+          nextRow={pins.nextRow}
         />
         <section className="pane">
           <ExcelPane
