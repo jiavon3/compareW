@@ -88,8 +88,9 @@ pub fn align_grid(
     left: Option<&Table>,
     right: Option<&Table>,
 ) -> Result<ExcelSheet, String> {
-    let left_table = left.unwrap_or(&Vec::new());
-    let right_table = right.unwrap_or(&Vec::new());
+    let empty: Table = Vec::new();
+    let left_table = left.unwrap_or(&empty);
+    let right_table = right.unwrap_or(&empty);
     let height = left_table.len().max(right_table.len());
     let width = left_table
         .iter()
