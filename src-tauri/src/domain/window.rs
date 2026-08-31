@@ -43,6 +43,33 @@ pub fn dirty_lines(rows: &[DiffRow], left_side: bool) -> Vec<u32> {
     lines
 }
 
+pub fn dirty_row_indexes(rows: &[DiffRow]) -> Vec<u32> {
+    rows.iter()
+        .enumerate()
+        .filter(|(_, row)| row.kind != DiffKind::Equal)
+        .map(|(index, _)| index as u32)
+        .collect()
+}
+
+pub fn cap_marks(marks: Vec<u32>, cap: usize) -> Vec<u32> {
+    if marks.len() <= cap || cap == 0 {
+        return marks;
+    }
+    if cap == 1 {
+        return vec![marks[0]];
+    }
+    let mut out = Vec::with_capacity(cap);
+    let last = marks.len() - 1;
+    for i in 0..cap {
+        let index = i * last / (cap - 1);
+        let value = marks[index];
+        if out.last() != Some(&value) {
+            out.push(value);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,5 +109,20 @@ mod tests {
         let right = dirty_lines(&result.rows, false);
         assert_eq!(left, vec![2]);
         assert!(right.is_empty());
+    }
+
+    #[test]
+    fn dirty_row_indexes_skip_equal() {
+        let result = align_diff("keep\nold\n", "keep\nnew\n");
+        assert_eq!(dirty_row_indexes(&result.rows), vec![1]);
+    }
+
+    #[test]
+    fn cap_marks_keeps_ends() {
+        let marks: Vec<u32> = (0..100).collect();
+        let capped = cap_marks(marks, 5);
+        assert_eq!(capped.first().copied(), Some(0));
+        assert_eq!(capped.last().copied(), Some(99));
+        assert!(capped.len() <= 5);
     }
 }

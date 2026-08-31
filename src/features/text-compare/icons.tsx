@@ -147,6 +147,15 @@ export function IconText({ className }: IconProps) {
   );
 }
 
+export function IconExcel({ className }: IconProps) {
+  return (
+    <Mark className={className}>
+      <rect x="2.4" y="3" width="11.2" height="10" rx="1" />
+      <path d="M2.4 6.2h11.2M6.3 3v10" />
+    </Mark>
+  );
+}
+
 export function IconClear({ className }: IconProps) {
   return (
     <Mark className={className}>

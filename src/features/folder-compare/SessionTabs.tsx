@@ -1,9 +1,11 @@
-import { IconFolder, IconText } from "../text-compare/icons";
+import { IconExcel, IconFolder, IconText } from "../text-compare/icons";
 import ToolButton from "../text-compare/ToolButton";
 
+export type Session = "text" | "folder" | "excel";
+
 type Props = {
-  session: "text" | "folder";
-  onSession: (session: "text" | "folder") => void;
+  session: Session;
+  onSession: (session: Session) => void;
 };
 
 export default function SessionTabs({ session, onSession }: Props) {
@@ -22,6 +24,13 @@ export default function SessionTabs({ session, onSession }: Props) {
         label="文件夹比对"
         pressed={session === "folder"}
         onClick={() => onSession("folder")}
+      />
+      <ToolButton
+        kind="scope"
+        icon={<IconExcel />}
+        label="Excel比对"
+        pressed={session === "excel"}
+        onClick={() => onSession("excel")}
       />
     </div>
   );

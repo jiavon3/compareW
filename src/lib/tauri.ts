@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { FolderRow, FolderSummary } from "../features/folder-compare/types";
 import type { CompareSummary, DiffWindow } from "../features/text-compare/types";
 import type { RowFilter } from "../features/text-compare/filterRows";
+import type { ExcelSummary, ExcelWindow } from "../features/excel-compare/types";
 
 export function compareTexts(left: string, right: string): Promise<CompareSummary> {
   return invoke("compare_texts", { left, right });
@@ -41,4 +42,17 @@ export function javaAvailable(): Promise<boolean> {
 
 export function pickCompareRoot(): Promise<string | null> {
   return invoke("pick_compare_root");
+}
+
+export function compareExcel(left: string, right: string): Promise<ExcelSummary> {
+  return invoke("compare_excel", { left, right });
+}
+
+export function getExcelRows(
+  sheet: number,
+  filter: RowFilter,
+  offset: number,
+  limit: number,
+): Promise<ExcelWindow> {
+  return invoke("get_excel_rows", { sheet, filter, offset, limit });
 }

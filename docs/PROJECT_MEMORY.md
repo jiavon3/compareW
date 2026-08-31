@@ -13,6 +13,8 @@
 ### 文本比对
 
 - 左右 UTF-8 文本：打开文件或粘贴，行对齐。
+- 不一致行内用红色标出不同文字（Rust 算 span，前端只渲染）。
+- 中间分隔栏缩略标记不一致行，点击跳到该行。
 - 大文件：Rust `DiffStore` + 虚拟滚动；64 MiB 上限；`left.length + right.length > 200_000` 时不自动比对。
 - 路径栏：可编辑，回车打开，右侧浏览按钮。占位：「在此粘贴文本，或打开文件」。
 - 筛选：全部 / 差别 / 相同。
@@ -28,9 +30,17 @@
 - 列：名称 / 大小 / 已修改。行高 24px。
 - 展开 / 折叠（工具栏）、刷新（尽量保持已展开路径）。
 
+### Excel 比对
+
+- 左右 `.xlsx` / `.xlsm` / `.xls` / `.xlsb` / `.ods`。Rust `calamine` 读表，前端不算 diff。
+- 按工作表名对齐（忽略大小写）；表内按单元格显示值比对（公式看缓存值）。
+- 不一致单元格红色 `#c62828`；工作表标签不同则标红。
+- 筛选：全部 / 差别 / 相同（按行是否含不一致单元格）。
+- 中间分隔栏同样可跳到不一致行。单表最多约 50 万格；文件 64 MiB 上限。
+
 ### 会话
 
-- 文本页和文件夹页**同时挂着**，切换不丢结果（`src/App.tsx`）。
+- 文本页、文件夹页和 Excel 页**同时挂着**，切换不丢结果（`src/App.tsx`）。
 - 文件夹里打开文件是 drill-in 叠层，不影响独立的文本会话。「返回文件夹」关掉叠层。
 - **清空**：清当前这次比对。drill-in 上点清空会关掉叠层并重置文件夹会话。
 - 比对结果只在内存里，关应用即丢。没有会话落盘。
@@ -51,17 +61,20 @@
 - 左侧：会话切换 → **清空**（橡皮擦图标）→ **全部 / 差别 / 相同**。
 - 右侧：比对、刷新；文件夹另有展开、折叠。
 - 文件夹空白提示与文本占位同一套样式：「输入路径后回车，或选择文件夹」。
+- Excel 空白：「输入路径后回车，或选择 Excel」。
 
 ## 架构要点
 
 | 位置 | 职责 |
 |---|---|
-| `src-tauri/src/domain/align.rs` | 文本行对齐，不读盘 |
+| `src-tauri/src/domain/align.rs` | 文本行对齐与行内 span，不读盘 |
+| `src-tauri/src/domain/excel.rs` | Excel 工作表/单元格对齐，不读盘 |
 | `src-tauri/src/domain/folder.rs` | 文件夹对齐与 rollup |
 | `src-tauri/src/domain/scan.rs` | 扫目录/zip |
 | `src-tauri/src/commands/*` | Tauri 命令 |
 | `src/lib/tauri.ts` | 前端 invoke |
 | `src/features/text-compare/` | 文本 UI |
+| `src/features/excel-compare/` | Excel UI |
 | `src/features/folder-compare/` | 文件夹 UI |
 | `src/components/PathEditor.tsx` | 路径栏 |
 
@@ -84,7 +97,7 @@ macOS 选文件夹/jar：`src-tauri/src/picker.rs`（objc2，仅 macOS）。Wind
 - 内置 JRE
 - tar / 7z
 - 跟随目录符号链接
-- 忽略空白、行内高亮、方法级 class 导航
+- 忽略空白、方法级 class 导航
 - 自动展开所有嵌套 jar 做全量哈希（嵌套 jar 是文件，直到用户展开）
 - 会话保存 / 最近文件（尚未做）
 

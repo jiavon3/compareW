@@ -1,8 +1,8 @@
 import { useState } from "react";
+import ExcelComparePage from "./features/excel-compare/ExcelComparePage";
 import FolderComparePage from "./features/folder-compare/FolderComparePage";
+import type { Session } from "./features/folder-compare/SessionTabs";
 import TextComparePage from "./features/text-compare/TextComparePage";
-
-type Session = "text" | "folder";
 
 export default function App() {
   const [session, setSession] = useState<Session>("text");
@@ -57,6 +57,9 @@ export default function App() {
           />
         </div>
       ) : null}
+      <div className="session-view" hidden={session !== "excel"}>
+        <ExcelComparePage session="excel" onSession={setSession} />
+      </div>
     </>
   );
 }

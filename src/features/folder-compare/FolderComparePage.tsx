@@ -25,6 +25,7 @@ import {
   startFolderCompare,
 } from "../../lib/tauri";
 import SessionTabs from "./SessionTabs";
+import type { Session } from "./SessionTabs";
 import {
   emptyFolderSummary,
   FOLDER_ROW_PX,
@@ -34,8 +35,8 @@ import {
 } from "./types";
 
 type Props = {
-  session: "text" | "folder";
-  onSession: (session: "text" | "folder") => void;
+  session: Session;
+  onSession: (session: Session) => void;
   onOpenText: (left: string, right: string) => void;
   onClearDrillIn?: () => void;
   resetToken?: number;

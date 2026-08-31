@@ -5,6 +5,7 @@ mod picker;
 use std::sync::Mutex;
 
 use commands::diff::DiffStore;
+use commands::excel::ExcelStore;
 use commands::folder::FolderStore;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -14,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(Mutex::new(DiffStore::default()))
         .manage(Mutex::new(FolderStore::default()))
+        .manage(Mutex::new(ExcelStore::default()))
         .invoke_handler(tauri::generate_handler![
             commands::diff::compare_texts,
             commands::diff::get_diff_rows,
@@ -27,6 +29,8 @@ pub fn run() {
             commands::folder::read_folder_entry,
             commands::folder::java_available,
             commands::folder::decompile_class,
+            commands::excel::compare_excel,
+            commands::excel::get_excel_rows,
             picker::pick_compare_root
         ])
         .run(tauri::generate_context!())

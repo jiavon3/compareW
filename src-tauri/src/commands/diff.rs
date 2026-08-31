@@ -4,9 +4,10 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::domain::align::{align_diff, DiffRow, DiffStats};
-use crate::domain::window::{dirty_lines, window_rows};
+use crate::domain::window::{cap_marks, dirty_lines, dirty_row_indexes, window_rows};
 
 const DIRTY_LINE_CAP: usize = 40_000;
+const DIFF_MARK_CAP: usize = 4_000;
 
 #[derive(Default)]
 pub struct DiffStore {
@@ -20,6 +21,7 @@ pub struct CompareSummary {
     pub row_count: u32,
     pub dirty_left: Vec<u32>,
     pub dirty_right: Vec<u32>,
+    pub diff_marks: Vec<u32>,
 }
 
 #[derive(Debug, Serialize)]
@@ -45,6 +47,7 @@ fn summary_from(rows: &[DiffRow], stats: &DiffStats) -> CompareSummary {
         } else {
             Vec::new()
         },
+        diff_marks: cap_marks(dirty_row_indexes(rows), DIFF_MARK_CAP),
     }
 }
 

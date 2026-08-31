@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { RefObject, UIEvent } from "react";
-import type { DiffKind, DiffRow } from "./types";
+import type { DiffKind, DiffRow, TextSpan } from "./types";
 import { LINE_BOX_PX, VIEW_OVERSCAN } from "./types";
 
 type Side = "left" | "right";
@@ -23,6 +23,17 @@ type Props = {
 function cellClass(kind: DiffKind, empty: boolean): string {
   if (kind === "equal") return "cell";
   return empty ? "cell cell-diff cell-gap" : "cell cell-diff";
+}
+
+function renderLine(text: string, spans: TextSpan[] | undefined) {
+  if (!spans?.length) {
+    return text;
+  }
+  return spans.map((span, index) => (
+    <span key={index} className={span.changed ? "mark-diff" : undefined}>
+      {span.text}
+    </span>
+  ));
 }
 
 function lineCount(text: string): number {
@@ -145,6 +156,7 @@ export default function ComparePane({
             {rows.map((row, index) => {
               const line = side === "left" ? row.leftLine : row.rightLine;
               const value = side === "left" ? row.leftText : row.rightText;
+              const spans = side === "left" ? row.leftSpans : row.rightSpans;
               const empty = value.length === 0 && line === null;
               return (
                 <div
@@ -152,7 +164,7 @@ export default function ComparePane({
                   className={cellClass(row.kind, empty)}
                 >
                   <span className="gutter">{line ?? ""}</span>
-                  <pre className="line">{value}</pre>
+                  <pre className="line">{renderLine(value, spans)}</pre>
                 </div>
               );
             })}

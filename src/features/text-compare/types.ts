@@ -1,11 +1,18 @@
 export type DiffKind = "equal" | "delete" | "insert" | "replace";
 
+export type TextSpan = {
+  text: string;
+  changed: boolean;
+};
+
 export type DiffRow = {
   leftLine: number | null;
   rightLine: number | null;
   leftText: string;
   rightText: string;
   kind: DiffKind;
+  leftSpans?: TextSpan[];
+  rightSpans?: TextSpan[];
 };
 
 export type DiffStats = {
@@ -20,6 +27,7 @@ export type CompareSummary = {
   rowCount: number;
   dirtyLeft: number[];
   dirtyRight: number[];
+  diffMarks: number[];
 };
 
 export type DiffWindow = {
@@ -44,4 +52,5 @@ export const emptySummary: CompareSummary = {
   rowCount: 0,
   dirtyLeft: [],
   dirtyRight: [],
+  diffMarks: [],
 };

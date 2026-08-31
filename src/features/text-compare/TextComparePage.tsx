@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import DiffRail from "../../components/DiffRail";
 import PathEditor, { normalizePath } from "../../components/PathEditor";
 import { compareTexts, getDiffRows, readTextFile } from "../../lib/tauri";
 import SessionTabs from "../folder-compare/SessionTabs";
+import type { Session } from "../folder-compare/SessionTabs";
 import ComparePane from "./ComparePane";
 import type { RowFilter } from "./filterRows";
 import {
@@ -18,6 +20,7 @@ import {
 import ToolButton from "./ToolButton";
 import {
   AUTO_COMPARE_MAX_CHARS,
+  LINE_BOX_PX,
   emptySummary,
   type CompareSummary,
   type DiffRow,
@@ -43,9 +46,9 @@ export default function TextComparePage({
   onBackToFolder,
   onNewSession,
 }: {
-  session?: "text" | "folder";
+  session?: Session;
   active?: boolean;
-  onSession?: (session: "text" | "folder") => void;
+  onSession?: (session: Session) => void;
   drillIn?: { left: string; right: string };
   onBackToFolder?: () => void;
   onNewSession?: () => void;
@@ -69,6 +72,9 @@ export default function TextComparePage({
   const syncing = useRef(false);
   const viewReq = useRef({ filter: "all", start: -1, count: 0 });
   const suppressAuto = useRef(false);
+  const pendingJump = useRef<number | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewHeight, setViewHeight] = useState(0);
 
   async function loadWindow(nextFilter: RowFilter, start: number, count: number) {
     if (
@@ -123,6 +129,16 @@ export default function TextComparePage({
     return () => window.clearTimeout(timer);
   }, [left, right]);
 
+  useEffect(() => {
+    const node = leftScroll.current;
+    if (!node || mode !== "result") return;
+    const frame = () => setViewHeight(node.clientHeight);
+    frame();
+    const observer = new ResizeObserver(frame);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [mode, windowTotal]);
+
   function editLeft(value: string) {
     setLeft(value);
     setMode("edit");
@@ -169,6 +185,7 @@ export default function TextComparePage({
       setMode("result");
       viewReq.current = { filter: next, start: -1, count: 0 };
       void loadWindow(next, 0, 80);
+      setScrollTop(0);
       if (leftScroll.current) leftScroll.current.scrollTop = 0;
       if (rightScroll.current) rightScroll.current.scrollTop = 0;
     }
@@ -181,12 +198,36 @@ export default function TextComparePage({
     if (!from || !to) return;
     syncing.current = true;
     to.scrollTop = from.scrollTop;
+    setScrollTop(from.scrollTop);
+    setViewHeight(from.clientHeight);
     syncing.current = false;
   }
 
   function handleViewport(start: number, count: number) {
     void loadWindow(filter, start, count);
   }
+
+  function jumpToRow(row: number) {
+    if (mode !== "result") {
+      pendingJump.current = row;
+      setMode("result");
+      return;
+    }
+    const top = Math.max(0, row) * LINE_BOX_PX;
+    if (leftScroll.current) leftScroll.current.scrollTop = top;
+    if (rightScroll.current) rightScroll.current.scrollTop = top;
+    setScrollTop(top);
+    const start = Math.max(0, row - 20);
+    viewReq.current = { filter, start: -1, count: 0 };
+    void loadWindow(filter, start, 80);
+  }
+
+  useEffect(() => {
+    if (mode !== "result" || pendingJump.current == null) return;
+    const row = pendingJump.current;
+    pendingJump.current = null;
+    jumpToRow(row);
+  }, [mode]);
 
   async function refresh() {
     suppressAuto.current = true;
@@ -333,7 +374,14 @@ export default function TextComparePage({
             onViewportChange={handleViewport}
           />
         </section>
-        <div className="rail" aria-hidden="true" />
+        <DiffRail
+          totalRows={windowTotal}
+          marks={filter === "all" ? summary.diffMarks : []}
+          scrollTop={scrollTop}
+          viewHeight={viewHeight}
+          linePx={LINE_BOX_PX}
+          onJump={jumpToRow}
+        />
         <section className="pane">
           <ComparePane
             side="right"

@@ -117,7 +117,7 @@ body {
 
 .path-bar-split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 8px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
   padding: 0;
   background: #232830;
 }
@@ -484,7 +484,7 @@ body {
 
 .panes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 8px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
   padding: 0;
@@ -607,7 +607,6 @@ body {
 
 .cell-diff {
   background: var(--diff-wash);
-  color: var(--diff);
 }
 
 .cell-gap .line {
@@ -621,11 +620,23 @@ body {
   overflow: visible;
   font: inherit;
   line-height: inherit;
+  color: #111111;
+}
+
+.mark-diff {
+  color: var(--diff);
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  white-space: pre;
 }
 
 .rail {
   position: relative;
   align-self: stretch;
+  cursor: pointer;
+  overflow: hidden;
   background:
     repeating-linear-gradient(
       to bottom,
@@ -635,17 +646,40 @@ body {
     linear-gradient(90deg, #2f353d, #4a525c 45%, #2f353d);
 }
 
+.rail-mark {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  z-index: 1;
+  background: var(--diff);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.rail-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 0;
+  box-sizing: border-box;
+  border: 1px solid rgba(244, 241, 234, 0.32);
+  background: rgba(244, 241, 234, 0.14);
+  pointer-events: none;
+}
+
 .rail::before,
 .rail::after {
   content: "";
   position: absolute;
   left: 50%;
+  z-index: 2;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   transform: translateX(-50%);
   background: radial-gradient(circle at 35% 30%, #f0d59a, var(--pin) 55%, #7a5c24);
   box-shadow: 0 0 0 1px #2a3038;
+  pointer-events: none;
 }
 
 .rail::before {
@@ -676,6 +710,119 @@ body {
 .stat-mark {
   color: #f3e2b8;
   font-weight: 700;
+}
+
+.sheet-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px 8px 0;
+  background: #232830;
+  border-bottom: 1px solid var(--chrome-edge);
+}
+
+.sheet-tab {
+  appearance: none;
+  flex-shrink: 0;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid #3d454f;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  background: #2a3038;
+  color: #d6d0c4;
+  font: 500 12px/24px "IBM Plex Mono", ui-monospace, monospace;
+  cursor: pointer;
+}
+
+.sheet-tab:hover {
+  color: #f4f1ea;
+}
+
+.sheet-tab.is-on {
+  background: var(--paper);
+  color: #111111;
+  border-color: var(--paper);
+}
+
+.sheet-tab.is-diff {
+  color: #f3d6d0;
+}
+
+.sheet-tab.is-diff.is-on {
+  color: var(--diff);
+}
+
+.excel-scroll {
+  overflow: auto;
+  height: 100%;
+  min-height: 0;
+  cursor: default;
+}
+
+.excel-inner {
+  min-height: 100%;
+}
+
+.excel-colhead,
+.excel-row {
+  display: grid;
+  height: var(--line-box);
+  min-height: var(--line-box);
+}
+
+.excel-colhead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: linear-gradient(180deg, #ece7dc 0%, #ddd6c8 100%);
+  border-bottom: 1px solid #cfc8ba;
+  color: #3f3a33;
+  font: 600 11px/var(--line-box) "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.excel-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  padding: 0 6px;
+  text-align: right;
+  color: #8a8478;
+  background: inherit;
+}
+
+.excel-colhead .excel-gutter {
+  z-index: 4;
+  background: #e4dfd4;
+}
+
+.excel-col,
+.excel-cell {
+  box-sizing: border-box;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-left: 1px solid #ddd6c8;
+}
+
+.excel-row {
+  background: var(--paper);
+  box-shadow: inset 0 -1px 0 #ddd6c8;
+  color: #111111;
+  font: var(--mono-size)/var(--line-box) "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.excel-row .excel-gutter {
+  background: var(--paper);
+}
+
+.excel-cell.is-diff {
+  color: var(--diff);
+  font-weight: 600;
+  background: var(--diff-wash);
 }
 
 @media (prefers-reduced-motion: reduce) {
