@@ -230,8 +230,6 @@ export default function ExcelComparePage({
   const marks = filter === "all" && sheet ? sheet.dirtyRows : [];
   const topRow = Math.floor(scrollTop / EXCEL_ROW_PX);
   const pins = pinNav(sheet ? sheet.dirtyRows : [], topRow, filter);
-  const emptyText =
-    summary.sheets.length === 0 ? "输入路径后回车，或选择 Excel" : "没有可显示的行";
 
   return (
     <div className="bench">
@@ -332,7 +330,6 @@ export default function ExcelComparePage({
             totalRows={windowTotal}
             width={windowWidth}
             windowStart={windowStart}
-            emptyText={emptyText}
             scrollRef={leftScroll}
             onScroll={handleScroll("left")}
           />
@@ -355,7 +352,6 @@ export default function ExcelComparePage({
             totalRows={windowTotal}
             width={windowWidth}
             windowStart={windowStart}
-            emptyText={emptyText}
             scrollRef={rightScroll}
             onScroll={handleScroll("right")}
           />

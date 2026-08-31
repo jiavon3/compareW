@@ -149,10 +149,22 @@ export function IconText({ className }: IconProps) {
 
 export function IconExcel({ className }: IconProps) {
   return (
-    <Mark className={className}>
-      <rect x="2.4" y="3" width="11.2" height="10" rx="1" />
-      <path d="M2.4 6.2h11.2M6.3 3v10" />
-    </Mark>
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4.4" y="2.5" width="9.2" height="11" rx="1.1" />
+      <path d="M4.4 6.4h9.2M4.4 9.6h9.2M8.4 2.5v11" />
+      <path d="M1.7 3.3 4.6 7.1M4.6 3.3 1.7 7.1" strokeWidth="1.55" />
+    </svg>
   );
 }
 

@@ -7,7 +7,8 @@ export type ExcelCell = {
 };
 
 export type ExcelRow = {
-  index: number;
+  leftIndex: number | null;
+  rightIndex: number | null;
   dirty: boolean;
   cells: ExcelCell[];
 };

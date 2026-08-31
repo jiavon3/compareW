@@ -79,10 +79,7 @@ impl FolderNode {
         size: u64,
         mtime: Option<i64>,
     ) {
-        let parts: Vec<&str> = rel
-            .split('/')
-            .filter(|part| !part.is_empty())
-            .collect();
+        let parts: Vec<&str> = rel.split('/').filter(|part| !part.is_empty()).collect();
         if parts.is_empty() {
             return;
         }
@@ -104,10 +101,7 @@ impl FolderNode {
     }
 
     pub fn ensure_dir(&mut self, rel: &str) {
-        let parts: Vec<&str> = rel
-            .split('/')
-            .filter(|part| !part.is_empty())
-            .collect();
+        let parts: Vec<&str> = rel.split('/').filter(|part| !part.is_empty()).collect();
         let mut node = self;
         for part in parts {
             node = node

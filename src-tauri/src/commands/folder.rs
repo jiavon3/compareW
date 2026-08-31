@@ -151,7 +151,10 @@ impl FolderSession {
             self.refresh_rows();
             return Ok(());
         }
-        let frame = self.stack.pop().ok_or_else(|| "无法打开文件夹".to_string())?;
+        let frame = self
+            .stack
+            .pop()
+            .ok_or_else(|| "无法打开文件夹".to_string())?;
         self.left_src = frame.left_src;
         self.right_src = frame.right_src;
         self.left_tree = frame.left_tree;
@@ -294,7 +297,9 @@ fn node_at_mut<'a>(root: &'a mut FolderNode, path: &[String]) -> Option<&'a mut 
 }
 
 fn walk(root: &FolderNode, prefix: &[String]) -> FolderNode {
-    node_at(root, prefix).cloned().unwrap_or_else(FolderNode::dir)
+    node_at(root, prefix)
+        .cloned()
+        .unwrap_or_else(FolderNode::dir)
 }
 
 fn read_from_source(src: &Source, prefix: &[String], name: &str) -> Result<Vec<u8>, String> {
@@ -398,7 +403,10 @@ pub fn list_folder_rows(
 }
 
 #[tauri::command]
-pub fn folder_enter(name: String, store: State<Mutex<FolderStore>>) -> Result<FolderSummary, String> {
+pub fn folder_enter(
+    name: String,
+    store: State<Mutex<FolderStore>>,
+) -> Result<FolderSummary, String> {
     let mut guard = store.lock().expect("folder store");
     let session = guard
         .session
@@ -535,10 +543,8 @@ mod tests {
     use zip::ZipWriter;
 
     fn temp_dir(name: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "comparew-sess-{name}-{}",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("comparew-sess-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         path
@@ -582,9 +588,9 @@ mod tests {
         let mut session = FolderSession::start(&left, &right).unwrap();
         let roots = session.children_at(&[]).unwrap();
         assert!(roots.iter().any(|row| row.name == "BOOT-INF"));
-        assert!(roots.iter().any(|row| {
-            row.name == "README.txt" && row.status == FolderStatus::Equal
-        }));
+        assert!(roots
+            .iter()
+            .any(|row| { row.name == "README.txt" && row.status == FolderStatus::Equal }));
         let lib = session
             .children_at(&["BOOT-INF".into(), "lib".into()])
             .unwrap();
@@ -593,7 +599,9 @@ mod tests {
         let inner = session
             .children_at(&["BOOT-INF".into(), "lib".into(), "foo.jar".into()])
             .unwrap();
-        assert!(inner.iter().any(|row| row.name == "com" && row.status == FolderStatus::Different));
+        assert!(inner
+            .iter()
+            .any(|row| row.name == "com" && row.status == FolderStatus::Different));
         let class_rows = session
             .children_at(&[
                 "BOOT-INF".into(),
@@ -635,9 +643,9 @@ mod tests {
         fs::write(left.join("sub").join("a.md"), "a").unwrap();
         let mut session = FolderSession::start(&left, Path::new("")).unwrap();
         let roots = session.children_at(&[]).unwrap();
-        assert!(roots.iter().any(|row| {
-            row.name == "only.txt" && row.status == FolderStatus::LeftOnly
-        }));
+        assert!(roots
+            .iter()
+            .any(|row| { row.name == "only.txt" && row.status == FolderStatus::LeftOnly }));
         let sub = session.children_at(&["sub".into()]).unwrap();
         assert_eq!(sub[0].name, "a.md");
         assert_eq!(sub[0].status, FolderStatus::LeftOnly);

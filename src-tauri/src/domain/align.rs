@@ -199,7 +199,8 @@ fn inline_spans(left: &str, right: &str) -> (Vec<TextSpan>, Vec<TextSpan>) {
                 new_len,
             } => {
                 let hunk_left: String = (0..old_len).map(|i| left_tokens[old_index + i]).collect();
-                let hunk_right: String = (0..new_len).map(|i| right_tokens[new_index + i]).collect();
+                let hunk_right: String =
+                    (0..new_len).map(|i| right_tokens[new_index + i]).collect();
                 if let Some((ls, rs)) = spans_from_char_diff(&hunk_left, &hunk_right) {
                     for span in ls {
                         push_span(&mut left_spans, &span.text, span.changed);
@@ -271,6 +272,7 @@ pub fn align_diff(left: &str, right: &str) -> DiffResult {
         };
     }
 
+    let pending = left.is_empty() || right.is_empty();
     let diff = TextDiff::from_lines(left, right);
     let old = diff.old_slices();
     let new = diff.new_slices();
@@ -297,26 +299,36 @@ pub fn align_diff(left: &str, right: &str) -> DiffResult {
             DiffOp::Delete {
                 old_index, old_len, ..
             } => {
+                let kind = if pending {
+                    DiffKind::Equal
+                } else {
+                    DiffKind::Delete
+                };
                 for i in 0..old_len {
                     rows.push(diff_row(
                         Some(line_number(old_index, i)),
                         None,
                         strip_nl(old[old_index + i]),
                         String::new(),
-                        DiffKind::Delete,
+                        kind,
                     ));
                 }
             }
             DiffOp::Insert {
                 new_index, new_len, ..
             } => {
+                let kind = if pending {
+                    DiffKind::Equal
+                } else {
+                    DiffKind::Insert
+                };
                 for i in 0..new_len {
                     rows.push(diff_row(
                         None,
                         Some(line_number(new_index, i)),
                         String::new(),
                         strip_nl(new[new_index + i]),
-                        DiffKind::Insert,
+                        kind,
                     ));
                 }
             }
@@ -381,6 +393,27 @@ mod tests {
                 }
             }
         );
+    }
+
+    #[test]
+    fn one_side_only_is_not_marked_different() {
+        let left_only = align_diff("hello\nworld\n", "");
+        assert_eq!(left_only.rows.len(), 2);
+        assert!(left_only.rows.iter().all(|row| row.kind == DiffKind::Equal));
+        assert!(left_only.rows.iter().all(|row| row.left_spans.is_empty()));
+        assert_eq!(left_only.stats.equal, 2);
+        assert_eq!(left_only.stats.delete, 0);
+        assert_eq!(left_only.rows[0].left_text, "hello");
+        assert_eq!(left_only.rows[0].right_line, None);
+
+        let right_only = align_diff("", "hello\n");
+        assert_eq!(right_only.rows.len(), 1);
+        assert_eq!(right_only.rows[0].kind, DiffKind::Equal);
+        assert!(right_only.rows[0].right_spans.is_empty());
+        assert_eq!(right_only.stats.insert, 0);
+        assert_eq!(right_only.stats.equal, 1);
+        assert_eq!(right_only.rows[0].right_text, "hello");
+        assert_eq!(right_only.rows[0].left_line, None);
     }
 
     #[test]

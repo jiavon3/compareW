@@ -10,7 +10,6 @@ type Props = {
   totalRows: number;
   width: number;
   windowStart: number;
-  emptyText: string;
   scrollRef: RefObject<HTMLDivElement | null>;
   onScroll: (event: UIEvent<HTMLDivElement>) => void;
 };
@@ -21,7 +20,6 @@ export default function ExcelPane({
   totalRows,
   width,
   windowStart,
-  emptyText,
   scrollRef,
   onScroll,
 }: Props) {
@@ -43,9 +41,7 @@ export default function ExcelPane({
               </span>
             ))}
           </div>
-          {totalRows === 0 ? (
-            <div className="folder-empty">{emptyText}</div>
-          ) : (
+          {totalRows === 0 ? null : (
             <div
               className="virt-space"
               style={{ height: Math.max(totalRows, 1) * EXCEL_ROW_PX }}
@@ -54,29 +50,32 @@ export default function ExcelPane({
                 className="virt-window"
                 style={{ transform: `translateY(${windowStart * EXCEL_ROW_PX}px)` }}
               >
-                {rows.map((row, index) => (
-                  <div
-                    key={`${side}-${windowStart + index}`}
-                    className={row.dirty ? "excel-row is-diff" : "excel-row"}
-                    style={grid}
-                  >
-                    <span className="excel-gutter">{row.index}</span>
-                    {Array.from({ length: columns }, (_, col) => {
-                      const cell = row.cells[col];
-                      const value = side === "left" ? (cell?.left ?? "") : (cell?.right ?? "");
-                      const changed = Boolean(cell?.changed);
-                      return (
-                        <span
-                          key={col}
-                          className={changed ? "excel-cell is-diff" : "excel-cell"}
-                          title={value}
-                        >
-                          {value}
-                        </span>
-                      );
-                    })}
-                  </div>
-                ))}
+                {rows.map((row, index) => {
+                  const line = side === "left" ? row.leftIndex : row.rightIndex;
+                  return (
+                    <div
+                      key={`${side}-${windowStart + index}`}
+                      className={row.dirty ? "excel-row is-diff" : "excel-row"}
+                      style={grid}
+                    >
+                      <span className="excel-gutter">{line ?? ""}</span>
+                      {Array.from({ length: columns }, (_, col) => {
+                        const cell = row.cells[col];
+                        const value = side === "left" ? (cell?.left ?? "") : (cell?.right ?? "");
+                        const changed = Boolean(cell?.changed);
+                        return (
+                          <span
+                            key={col}
+                            className={changed ? "excel-cell is-diff" : "excel-cell"}
+                            title={value}
+                          >
+                            {value}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

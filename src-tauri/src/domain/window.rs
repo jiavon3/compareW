@@ -14,7 +14,10 @@ pub fn window_rows(
     offset: usize,
     limit: usize,
 ) -> (Vec<DiffRow>, usize) {
-    let total = rows.iter().filter(|row| row_matches(row.kind, filter)).count();
+    let total = rows
+        .iter()
+        .filter(|row| row_matches(row.kind, filter))
+        .count();
     let window = rows
         .iter()
         .filter(|row| row_matches(row.kind, filter))

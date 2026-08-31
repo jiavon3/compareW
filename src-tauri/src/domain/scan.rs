@@ -79,10 +79,7 @@ fn scan_dir_into(dir: &Path, tree: &mut FolderNode) -> Result<(), String> {
                 continue;
             }
             tree.ensure_dir(&name);
-            let child = tree
-                .children
-                .get_mut(&name)
-                .expect("dir just inserted");
+            let child = tree.children.get_mut(&name).expect("dir just inserted");
             child.mtime = mtime_from_meta(&meta);
             let mut nested = FolderNode::dir();
             scan_dir_into(&path, &mut nested)?;
@@ -114,8 +111,8 @@ pub fn scan_zip_path(path: &Path) -> Result<FolderNode, String> {
 }
 
 pub fn scan_zip_bytes(bytes: &[u8]) -> Result<FolderNode, String> {
-    let archive =
-        ZipArchive::new(Cursor::new(bytes.to_vec())).map_err(|_| "无法作为压缩包打开".to_string())?;
+    let archive = ZipArchive::new(Cursor::new(bytes.to_vec()))
+        .map_err(|_| "无法作为压缩包打开".to_string())?;
     scan_zip_archive(archive)
 }
 
@@ -154,8 +151,8 @@ pub fn read_zip_entry_bytes(path: &Path, entry: &str) -> Result<Vec<u8>, String>
 }
 
 pub fn read_zip_bytes_entry(bytes: &[u8], entry: &str) -> Result<Vec<u8>, String> {
-    let mut archive =
-        ZipArchive::new(Cursor::new(bytes.to_vec())).map_err(|_| "无法作为压缩包打开".to_string())?;
+    let mut archive = ZipArchive::new(Cursor::new(bytes.to_vec()))
+        .map_err(|_| "无法作为压缩包打开".to_string())?;
     read_entry_from_archive(&mut archive, entry)
 }
 
@@ -180,8 +177,8 @@ pub fn bytes_as_utf8(bytes: &[u8]) -> Result<String, String> {
     if bytes.contains(&0) {
         return Err("无法读取文件：不是有效的 UTF-8".to_string());
     }
-    let text = std::str::from_utf8(bytes)
-        .map_err(|_| "无法读取文件：不是有效的 UTF-8".to_string())?;
+    let text =
+        std::str::from_utf8(bytes).map_err(|_| "无法读取文件：不是有效的 UTF-8".to_string())?;
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     Ok(text.to_string())
 }
@@ -239,10 +236,8 @@ mod tests {
     use zip::ZipWriter;
 
     fn temp_dir(name: &str) -> PathBuf {
-        let path = std::env::temp_dir().join(format!(
-            "comparew-scan-{name}-{}",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("comparew-scan-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         path
@@ -289,8 +284,16 @@ mod tests {
         let b = dir.join("b.zip");
         let t1 = DateTime::from_date_and_time(2020, 1, 1, 0, 0, 0).unwrap();
         let t2 = DateTime::from_date_and_time(2021, 6, 6, 12, 0, 0).unwrap();
-        write_zip_with_time(&a, &[("META-INF/MANIFEST.MF", b"Manifest-Version: 1.0\n")], Some(t1));
-        write_zip_with_time(&b, &[("META-INF/MANIFEST.MF", b"Manifest-Version: 1.0\n")], Some(t2));
+        write_zip_with_time(
+            &a,
+            &[("META-INF/MANIFEST.MF", b"Manifest-Version: 1.0\n")],
+            Some(t1),
+        );
+        write_zip_with_time(
+            &b,
+            &[("META-INF/MANIFEST.MF", b"Manifest-Version: 1.0\n")],
+            Some(t2),
+        );
         let l = scan_zip_path(&a).unwrap();
         let r = scan_zip_path(&b).unwrap();
         let rows = align_children(&l.children, &r.children);
@@ -332,8 +335,14 @@ mod tests {
         write_zip(&inner_r, &[("com/A.class", b"new")]);
         let left = dir.join("left.jar");
         let right = dir.join("right.jar");
-        write_zip(&left, &[("BOOT-INF/lib/foo.jar", &fs::read(&inner_l).unwrap())]);
-        write_zip(&right, &[("BOOT-INF/lib/foo.jar", &fs::read(&inner_r).unwrap())]);
+        write_zip(
+            &left,
+            &[("BOOT-INF/lib/foo.jar", &fs::read(&inner_l).unwrap())],
+        );
+        write_zip(
+            &right,
+            &[("BOOT-INF/lib/foo.jar", &fs::read(&inner_r).unwrap())],
+        );
         let l = scan_zip_path(&left).unwrap();
         let r = scan_zip_path(&right).unwrap();
         let lib = align_children(
