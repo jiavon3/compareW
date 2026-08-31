@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, UIEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import DiffRail from "../../components/DiffRail";
 import PathEditor, { normalizePath } from "../../components/PathEditor";
 import type { RowFilter } from "../text-compare/filterRows";
 import {
@@ -17,6 +18,12 @@ import {
   IconSame,
 } from "../text-compare/icons";
 import ToolButton from "../text-compare/ToolButton";
+import {
+  clusterMarks,
+  folderStopRows,
+  pinTargets,
+  remapClusterStarts,
+} from "../../lib/diffNav";
 import {
   decompileClass,
   javaAvailable,
@@ -178,6 +185,8 @@ export default function FolderComparePage({
   const [selected, setSelected] = useState("");
   const [viewStart, setViewStart] = useState(0);
   const [viewCount, setViewCount] = useState(80);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewHeight, setViewHeight] = useState(0);
   const leftScroll = useRef<HTMLDivElement>(null);
   const rightScroll = useRef<HTMLDivElement>(null);
   const syncing = useRef(false);
@@ -188,14 +197,41 @@ export default function FolderComparePage({
     void javaAvailable().then(setHasJava);
   }, []);
 
-  const visible = useMemo(() => {
-    return flatten(rootRows, [], 0, expanded, childMap, []).filter((item) =>
-      matchesFilter(item.row, filter),
-    );
-  }, [rootRows, expanded, childMap, filter]);
+  const tree = useMemo(
+    () => flatten(rootRows, [], 0, expanded, childMap, []),
+    [rootRows, expanded, childMap],
+  );
+
+  const visible = useMemo(
+    () => tree.filter((item) => matchesFilter(item.row, filter)),
+    [tree, filter],
+  );
 
   const windowRows = visible.slice(viewStart, viewStart + viewCount);
   const selectedItem = visible.find((item) => pathKey(item.path) === selected);
+
+  const topRow = Math.floor(scrollTop / FOLDER_ROW_PX);
+  const pins = useMemo(() => {
+    const stops = folderStopRows(
+      tree.map((item) => ({
+        status: item.row.status,
+        kind: item.row.kind,
+        expanded: expanded.has(pathKey(item.path)),
+      })),
+    );
+    const clusters = remapClusterStarts(clusterMarks(stops), (start) => {
+      const item = tree[start];
+      if (!item) return null;
+      const key = pathKey(item.path);
+      const index = visible.findIndex((row) => pathKey(row.path) === key);
+      return index < 0 ? null : index;
+    });
+    if (clusters.length === 0) {
+      return { hasClusters: false, prevRow: null as number | null, nextRow: null as number | null };
+    }
+    const { prev, next } = pinTargets(clusters, topRow);
+    return { hasClusters: true, prevRow: prev, nextRow: next };
+  }, [tree, visible, expanded, topRow]);
 
   async function expandFirstLevel(roots: FolderRow[]) {
     const nextMap = new Map<string, FolderRow[]>();
@@ -455,6 +491,8 @@ export default function FolderComparePage({
       const count = Math.ceil(node.clientHeight / FOLDER_ROW_PX) + 20;
       setViewStart(start);
       setViewCount(Math.max(count, 40));
+      setScrollTop(node.scrollTop);
+      setViewHeight(node.clientHeight);
       if (syncing.current) return;
       const other = source === "left" ? rightScroll.current : leftScroll.current;
       if (!other) return;
@@ -462,6 +500,20 @@ export default function FolderComparePage({
       other.scrollTop = node.scrollTop;
       syncing.current = false;
     };
+  }
+
+  function jumpToRow(row: number) {
+    const target = Math.max(0, Math.min(row, Math.max(visible.length, 1) - 1));
+    const top = target * FOLDER_ROW_PX;
+    if (leftScroll.current) leftScroll.current.scrollTop = top;
+    if (rightScroll.current) rightScroll.current.scrollTop = top;
+    setScrollTop(top);
+    const start = Math.max(0, target - 10);
+    const count = Math.max(viewCount, 40);
+    setViewStart(start);
+    setViewCount(count);
+    const item = visible[target];
+    if (item) setSelected(pathKey(item.path));
   }
 
   function renderSide(side: "left" | "right") {
@@ -679,7 +731,17 @@ export default function FolderComparePage({
           </div>
           {renderSide("left")}
         </section>
-        <div className="rail" aria-hidden="true" />
+        <DiffRail
+          totalRows={visible.length}
+          marks={[]}
+          scrollTop={scrollTop}
+          viewHeight={viewHeight}
+          linePx={FOLDER_ROW_PX}
+          onJump={jumpToRow}
+          hasClusters={pins.hasClusters}
+          prevRow={pins.prevRow}
+          nextRow={pins.nextRow}
+        />
         <section className="pane">
           <div className="folder-pane-head">
             <span>名称</span>
