@@ -8,6 +8,9 @@ type Props = {
   viewHeight: number;
   linePx: number;
   onJump: (row: number) => void;
+  hasClusters?: boolean;
+  prevRow?: number | null;
+  nextRow?: number | null;
 };
 
 type Band = {
@@ -27,6 +30,9 @@ export default function DiffRail({
   viewHeight,
   linePx,
   onJump,
+  hasClusters = false,
+  prevRow = null,
+  nextRow = null,
 }: Props) {
   const railRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
@@ -88,6 +94,12 @@ export default function DiffRail({
     onJump(rowAt(event.clientY));
   }
 
+  function jumpPin(event: MouseEvent<HTMLButtonElement>, row: number | null) {
+    event.stopPropagation();
+    if (row == null) return;
+    onJump(row);
+  }
+
   return (
     <div
       ref={railRef}
@@ -110,6 +122,26 @@ export default function DiffRail({
           style={{ top: band.top, height: band.height }}
         />
       ))}
+      {hasClusters ? (
+        <>
+          <button
+            type="button"
+            className="rail-pin is-prev"
+            aria-label="上一条差异"
+            title={prevRow == null ? "没有上一条差异" : "上一条差异"}
+            disabled={prevRow == null}
+            onClick={(event) => jumpPin(event, prevRow)}
+          />
+          <button
+            type="button"
+            className="rail-pin is-next"
+            aria-label="下一条差异"
+            title={nextRow == null ? "没有下一条差异" : "下一条差异"}
+            disabled={nextRow == null}
+            onClick={(event) => jumpPin(event, nextRow)}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

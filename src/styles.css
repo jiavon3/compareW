@@ -667,27 +667,37 @@ body {
   pointer-events: none;
 }
 
-.rail::before,
-.rail::after {
-  content: "";
+.rail-pin {
+  appearance: none;
   position: absolute;
   left: 50%;
-  z-index: 2;
+  z-index: 3;
   width: 8px;
   height: 8px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   transform: translateX(-50%);
   background: radial-gradient(circle at 35% 30%, #f0d59a, var(--pin) 55%, #7a5c24);
   box-shadow: 0 0 0 1px #2a3038;
-  pointer-events: none;
+  cursor: pointer;
 }
 
-.rail::before {
+.rail-pin.is-prev {
   top: 18%;
 }
 
-.rail::after {
+.rail-pin.is-next {
   bottom: 18%;
+}
+
+.rail-pin:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.rail-pin:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .status {
