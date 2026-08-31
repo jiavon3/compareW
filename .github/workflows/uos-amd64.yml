@@ -29,7 +29,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: "22"
           cache: npm
 
       - name: Setup Rust
@@ -52,6 +52,8 @@ jobs:
           releaseName: CompareW v__VERSION__
           releaseBody: UOS / Debian amd64 安装包。
           releaseDraft: true
+          includeRelease: ${{ startsWith(github.ref, 'refs/tags/') }}
+          includeUpdaterJson: false
           args: --bundles deb
 
       - name: Upload deb
