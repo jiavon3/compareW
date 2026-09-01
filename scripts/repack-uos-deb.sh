@@ -79,40 +79,61 @@ chmod +x "$STAGE/opt/comparew/AppRun"
 
 LIBDIR="$STAGE/opt/comparew/usr/lib"
 mkdir -p "$LIBDIR"
-for so in libstdc++.so.6 libgcc_s.so.1; do
-  for src in \
-    "/usr/lib/x86_64-linux-gnu/$so" \
-    "/lib/x86_64-linux-gnu/$so"; do
-    if [[ -e "$src" ]]; then
-      cp -L "$src" "$LIBDIR/"
-      break
-    fi
-  done
-done
-
-cat > "$STAGE/usr/bin/comparew" << 'EOF'
-#!/bin/bash
-set -euo pipefail
-APPRUN="/opt/comparew/AppRun"
-NEED_MAJOR=2
-NEED_MINOR=34
-
-have="$(ldd --version 2>/dev/null | awk 'NR==1 { print $NF; exit }' || true)"
-have_major="${have%%.*}"
-have_rest="${have#*.}"
-have_minor="${have_rest%%.*}"
-
-if [[ "$have_major" =~ ^[0-9]+$ && "$have_minor" =~ ^[0-9]+$ ]]; then
-  if (( have_major < NEED_MAJOR || (have_major == NEED_MAJOR && have_minor < NEED_MINOR) )); then
-    echo "CompareW 需要 glibc ${NEED_MAJOR}.${NEED_MINOR}+（Ubuntu 22.04 / Debian 12 / Deepin 23 或更新的统信 UOS）。" >&2
-    echo "当前系统 glibc 为 ${have}，可以安装但无法运行。" >&2
-    exit 1
-  fi
+if ! command -v patchelf >/dev/null 2>&1; then
+  echo "patchelf is required to vendor glibc for UOS" >&2
+  exit 1
 fi
 
-exec "$APPRUN" "$@"
-EOF
-chmod 0755 "$STAGE/usr/bin/comparew"
+copy_lib() {
+  local name="$1"
+  local src
+  for src in "/lib/x86_64-linux-gnu/$name" "/usr/lib/x86_64-linux-gnu/$name" "/lib64/$name"; do
+    if [[ -e "$src" ]]; then
+      cp -L "$src" "$LIBDIR/"
+      return 0
+    fi
+  done
+  return 1
+}
+
+copy_lib libstdc++.so.6 || true
+copy_lib libgcc_s.so.1 || true
+
+ld_src=""
+for src in /lib64/ld-linux-x86-64.so.2 /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2; do
+  if [[ -e "$src" ]]; then
+    ld_src="$src"
+    break
+  fi
+done
+if [[ -z "$ld_src" ]]; then
+  echo "ld-linux-x86-64.so.2 not found" >&2
+  exit 1
+fi
+cp -L "$ld_src" "$LIBDIR/ld-linux-x86-64.so.2"
+chmod +x "$LIBDIR/ld-linux-x86-64.so.2"
+
+for so in \
+  libc.so.6 libm.so.6 libdl.so.2 libpthread.so.0 librt.so.1 \
+  libresolv.so.2 libutil.so.1 libcrypt.so.1 \
+  libnss_files.so.2 libnss_dns.so.2 libnss_compat.so.2 \
+  libthread_db.so.1; do
+  copy_lib "$so" || true
+done
+
+if [[ -d /usr/lib/x86_64-linux-gnu/gconv ]]; then
+  mkdir -p "$LIBDIR/gconv"
+  cp -a /usr/lib/x86_64-linux-gnu/gconv/. "$LIBDIR/gconv/" || true
+fi
+
+interp="/opt/comparew/usr/lib/ld-linux-x86-64.so.2"
+while IFS= read -r -d '' elf; do
+  if patchelf --print-interpreter "$elf" >/dev/null 2>&1; then
+    patchelf --set-interpreter "$interp" "$elf"
+  fi
+done < <(find "$STAGE/opt/comparew" -type f -print0)
+
+install -m 0755 "$ROOT/scripts/comparew-launch.sh" "$STAGE/usr/bin/comparew"
 
 ICON_SRC=""
 for candidate in \
@@ -138,6 +159,7 @@ if [[ -n "$DESKTOP_SRC" ]]; then
   sed -E \
     -e 's|^Exec=.*|Exec=/usr/bin/comparew|' \
     -e "s|^Icon=.*|Icon=${ICON_FIELD}|" \
+    -e '/^DBusActivatable=/d' \
     "$DESKTOP_SRC" > "$STAGE/usr/share/applications/comparew.desktop"
 else
   cat > "$STAGE/usr/share/applications/comparew.desktop" << EOF
@@ -151,6 +173,12 @@ Terminal=false
 Categories=Utility;
 StartupNotify=true
 EOF
+fi
+if ! grep -q '^StartupNotify=' "$STAGE/usr/share/applications/comparew.desktop"; then
+  printf '\nStartupNotify=true\n' >> "$STAGE/usr/share/applications/comparew.desktop"
+fi
+if ! grep -q '^Terminal=' "$STAGE/usr/share/applications/comparew.desktop"; then
+  printf 'Terminal=false\n' >> "$STAGE/usr/share/applications/comparew.desktop"
 fi
 
 SIZE_KB="$(du -sk "$STAGE/opt" "$STAGE/usr" | awk '{ s += $1 } END { print s }')"
