@@ -13,7 +13,7 @@ import {
   IconClear,
   IconCompare,
   IconDiff,
-  IconFile,
+  IconExcel,
   IconRefresh,
   IconSame,
 } from "../text-compare/icons";
@@ -274,7 +274,7 @@ export default function ExcelComparePage({
             />
             <ToolButton
               icon={<IconRefresh />}
-              label="刷新"
+              label="重载"
               onClick={() => void runCompare()}
             />
           </div>
@@ -286,7 +286,7 @@ export default function ExcelComparePage({
           value={leftPath}
           placeholder="左侧 Excel 路径，回车打开"
           browseLabel="选择 Excel"
-          icon={<IconFile />}
+          icon={<IconExcel />}
           onChange={setLeftPath}
           onSubmit={() => submitPath("left")}
           onBrowse={() => void browseFile("left")}
@@ -296,7 +296,7 @@ export default function ExcelComparePage({
           value={rightPath}
           placeholder="右侧 Excel 路径，回车打开"
           browseLabel="选择 Excel"
-          icon={<IconFile />}
+          icon={<IconExcel />}
           onChange={setRightPath}
           onSubmit={() => submitPath("right")}
           onBrowse={() => void browseFile("right")}

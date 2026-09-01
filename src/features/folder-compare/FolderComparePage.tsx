@@ -676,7 +676,7 @@ export default function FolderComparePage({
             />
             <ToolButton
               icon={<IconRefresh />}
-              label="刷新"
+              label="重载"
               onClick={() => void runCompare(leftPath, rightPath, true)}
             />
           </div>

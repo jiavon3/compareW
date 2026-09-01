@@ -333,7 +333,7 @@ export default function TextComparePage({
             />
             <ToolButton
               icon={<IconRefresh />}
-              label="刷新"
+              label="重载"
               onClick={() => void refresh()}
             />
           </div>
