@@ -6,10 +6,9 @@ set -u
 APPDIR="/opt/comparew"
 LIB="$APPDIR/usr/lib"
 LDSO="$LIB/ld-linux-x86-64.so.2"
-WRAPPED="$APPDIR/AppRun.wrapped"
-if [[ ! -e "$WRAPPED" ]]; then
-  WRAPPED="$APPDIR/usr/bin/comparew"
-fi
+# AppRun.wrapped is linuxdeploy's AppRun; /proc/self/exe becomes ld-linux and it
+# errors "No .desktop files found". The real UI binary is usr/bin/comparew.
+BIN="$APPDIR/usr/bin/comparew"
 LOGDIR="${XDG_CACHE_HOME:-$HOME/.cache}/comparew"
 LOG="$LOGDIR/launch.log"
 
@@ -18,7 +17,7 @@ mkdir -p "$LOGDIR" || true
   echo "==== $(date '+%F %T') ===="
   echo "host glibc: $(ldd --version 2>/dev/null | awk 'NR==1 { print $NF; exit }')"
   echo "ldso: $LDSO"
-  echo "wrapped: $WRAPPED"
+  echo "bin: $BIN"
   echo "args: $*"
 } >>"$LOG" 2>&1 || true
 
@@ -57,8 +56,8 @@ if [[ ! -x "$LDSO" || ! -e "$LIB/libc.so.6" ]]; then
   show_error "缺少打包的 glibc（${LDSO} 或 libc.so.6）。请重新安装 CompareW。"
   exit 1
 fi
-if [[ ! -x "$WRAPPED" ]]; then
-  show_error "找不到可执行文件 ${WRAPPED}（权限不够时请 sudo chmod +x 该文件）。"
+if [[ ! -x "$BIN" ]]; then
+  show_error "找不到可执行文件 ${BIN}（权限不够时请 sudo chmod +x 该文件）。"
   exit 1
 fi
 
@@ -121,7 +120,7 @@ cd "$APPDIR" || {
 }
 
 set +e
-"$LDSO" --inhibit-cache --library-path "$libpath" "$WRAPPED" "$@" >>"$LOG" 2>&1
+"$LDSO" --inhibit-cache --library-path "$libpath" "$BIN" "$@" >>"$LOG" 2>&1
 status=$?
 
 if [[ "$status" -ne 0 ]]; then

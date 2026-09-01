@@ -166,17 +166,15 @@ elif [[ -d "$STAGE/opt/comparew/lib" && ! -e "$STAGE/opt/comparew/lib/x86_64-lin
     "$STAGE/opt/comparew/lib/x86_64-linux-gnu/webkit2gtk-4.1"
 fi
 
-WRAPPED=""
-if [[ -e "$STAGE/opt/comparew/AppRun.wrapped" ]]; then
-  WRAPPED="$STAGE/opt/comparew/AppRun.wrapped"
-elif [[ -e "$STAGE/opt/comparew/usr/bin/comparew" ]]; then
-  WRAPPED="$STAGE/opt/comparew/usr/bin/comparew"
+MAIN=""
+if [[ -e "$STAGE/opt/comparew/usr/bin/comparew" ]]; then
+  MAIN="$STAGE/opt/comparew/usr/bin/comparew"
 else
-  echo "No AppRun.wrapped or usr/bin/comparew in AppDir" >&2
+  echo "No usr/bin/comparew in AppDir" >&2
   exit 1
 fi
 
-vendor_ldd "$WRAPPED"
+vendor_ldd "$MAIN"
 while IFS= read -r -d '' helper; do
   vendor_ldd "$helper"
 done < <(find "$STAGE/opt/comparew" -type f \( \
@@ -276,7 +274,7 @@ for f in \
   "$LIBDIR/ld-linux-x86-64.so.2" \
   "$LIBDIR/libstdc++.so.6" \
   "$LIBDIR/libgcc_s.so.1" \
-  "$WRAPPED"; do
+  "$MAIN"; do
   if [[ ! -e "$f" ]]; then
     missing="$missing $f"
   fi
@@ -293,8 +291,8 @@ if [[ -n "$missing" ]]; then
   echo "UOS package is missing required files:$missing" >&2
   exit 1
 fi
-if [[ ! -x "$WRAPPED" || ! -x "$LIBDIR/ld-linux-x86-64.so.2" ]]; then
-  echo "wrapped binary or ld-linux is not executable" >&2
+if [[ ! -x "$MAIN" || ! -x "$LIBDIR/ld-linux-x86-64.so.2" ]]; then
+  echo "comparew binary or ld-linux is not executable" >&2
   exit 1
 fi
 

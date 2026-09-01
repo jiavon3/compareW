@@ -89,7 +89,7 @@ macOS 选文件夹/jar：`src-tauri/src/picker.rs`（objc2，仅 macOS）。Wind
 
 - GitHub：`wangjiafeng93/compareW`
 - Windows x64 NSIS：`.github/workflows/windows-x64.yml`（Actions 里 Package Windows x64）
-- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml`。Ubuntu 22.04 打 AppImage 后 `scripts/repack-uos-deb.sh` 打成 **UOS V20 可安装可运行** 的包：gzip（旧 dpkg 不认 zstd）、自带 WebKit 4.1 + glibc 2.35/`ld-linux`/`libnss_*`、WebKit 辅助进程、`lib`→`usr/lib` 符号链接、ELF 执行位 + postinst。启动器用包内 `ld-linux --library-path`，cwd 为 `/opt/comparew`，不混用系统 glibc 2.28。失败弹窗并写 `~/.cache/comparew/launch.log`。
+- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml`。Ubuntu 22.04 打 AppImage 后 `scripts/repack-uos-deb.sh` 打成 **UOS V20 可安装可运行** 的包：gzip（旧 dpkg 不认 zstd）、自带 WebKit 4.1 + glibc 2.35/`ld-linux`/`libnss_*`、WebKit 辅助进程、`lib`→`usr/lib` 符号链接、ELF 执行位 + postinst。启动器用包内 `ld-linux --library-path` 跑 `/opt/comparew/usr/bin/comparew`（不要跑 `AppRun.wrapped`，否则会报 No .desktop files found），cwd 为 `/opt/comparew`，不混用系统 glibc 2.28。失败弹窗并写 `~/.cache/comparew/launch.log`。
 - 安装包未签名
 
 本地开发：`npm run tauri dev`（需 Node 20+、Rust stable）。
