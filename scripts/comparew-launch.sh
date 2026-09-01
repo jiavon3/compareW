@@ -1,16 +1,24 @@
 #!/bin/bash
-# Installed as /usr/bin/comparew. Keeps double-click failures visible on UOS.
+# Installed as /usr/bin/comparew.
+# UOS V20 host glibc is 2.28. Never exec AppRun.wrapped with the host loader.
 set -u
 
 APPDIR="/opt/comparew"
-APPRUN="$APPDIR/AppRun"
+LIB="$APPDIR/usr/lib"
+LDSO="$LIB/ld-linux-x86-64.so.2"
+WRAPPED="$APPDIR/AppRun.wrapped"
+if [[ ! -e "$WRAPPED" ]]; then
+  WRAPPED="$APPDIR/usr/bin/comparew"
+fi
 LOGDIR="${XDG_CACHE_HOME:-$HOME/.cache}/comparew"
 LOG="$LOGDIR/launch.log"
 
 mkdir -p "$LOGDIR" || true
 {
   echo "==== $(date '+%F %T') ===="
-  echo "glibc: $(ldd --version 2>/dev/null | awk 'NR==1 { print $NF; exit }')"
+  echo "host glibc: $(ldd --version 2>/dev/null | awk 'NR==1 { print $NF; exit }')"
+  echo "ldso: $LDSO"
+  echo "wrapped: $WRAPPED"
   echo "args: $*"
 } >>"$LOG" 2>&1 || true
 
@@ -45,26 +53,75 @@ PY
   fi
 }
 
-if [[ ! -x "$APPRUN" ]]; then
-  show_error "找不到 ${APPRUN}，请重新安装 CompareW。"
+if [[ ! -x "$LDSO" || ! -e "$LIB/libc.so.6" ]]; then
+  show_error "缺少打包的 glibc（${LDSO} 或 libc.so.6）。请重新安装 CompareW。"
+  exit 1
+fi
+if [[ ! -x "$WRAPPED" ]]; then
+  show_error "找不到可执行文件 ${WRAPPED}（权限不够时请 sudo chmod +x 该文件）。"
   exit 1
 fi
 
-# Host glibc on UOS V20 is too old for Ubuntu 22.04 WebKit; AppDir vendors its own.
-# WebKit GPU/sandbox paths often abort with no window on DDE.
-export WEBKIT_DISABLE_SANDBOX="${WEBKIT_DISABLE_SANDBOX:-1}"
-export WEBKIT_DISABLE_COMPOSITING_MODE="${WEBKIT_DISABLE_COMPOSITING_MODE:-1}"
-export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
-export LIBGL_ALWAYS_SOFTWARE="${LIBGL_ALWAYS_SOFTWARE:-1}"
-# Bundled glibc cannot use the host locale-archive.
-export LC_ALL="${LC_ALL:-C.UTF-8}"
-export LANG="${LANG:-C.UTF-8}"
-if [[ -d "$APPDIR/usr/lib/gconv" ]]; then
-  export GCONV_PATH="${GCONV_PATH:-$APPDIR/usr/lib/gconv}"
+# Host LD_PRELOAD / IM modules are built against glibc 2.28.
+unset LD_PRELOAD
+export APPDIR
+export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin}"
+export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export GDK_BACKEND="${GDK_BACKEND:-x11}"
+export WEBKIT_DISABLE_SANDBOX=1
+export WEBKIT_FORCE_SANDBOX=0
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+export WEBKIT_DISABLE_DMABUF_RENDERER=1
+export LIBGL_ALWAYS_SOFTWARE=1
+export NO_AT_BRIDGE=1
+export GTK_A11Y=none
+export GTK_IM_MODULE=gtk-im-context-simple
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+if [[ -d "$LIB/gconv" ]]; then
+  export GCONV_PATH="$LIB/gconv"
+fi
+if [[ -f "$LIB/gdk-pixbuf-2.0/2.10.0/loaders.cache" ]]; then
+  export GDK_PIXBUF_MODULE_FILE="$LIB/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+fi
+if [[ -d "$LIB/gio/modules" ]]; then
+  export GIO_MODULE_DIR="$LIB/gio/modules"
 fi
 
+if [[ -d "$APPDIR/apprun-hooks" ]]; then
+  for hook in "$APPDIR/apprun-hooks"/*.sh; do
+    [[ -f "$hook" ]] || continue
+    if grep -q '^[[:space:]]*exec ' "$hook" 2>/dev/null; then
+      continue
+    fi
+    # shellcheck disable=SC1090
+    . "$hook"
+  done
+  export GDK_BACKEND=x11
+  export WEBKIT_DISABLE_SANDBOX=1
+  export GTK_IM_MODULE=gtk-im-context-simple
+fi
+
+libpath=""
+while IFS= read -r d; do
+  [[ -z "$d" ]] && continue
+  case ":$libpath:" in
+    *":$d:"*) ;;
+    *) libpath="${libpath:+$libpath:}$d" ;;
+  esac
+done < <(find "$APPDIR/usr" "$APPDIR/lib" -name '*.so*' -printf '%h\n' 2>/dev/null | sort -u)
+if [[ -z "$libpath" ]]; then
+  libpath="$LIB"
+fi
+
+# WebKit rewrites helper prefixes to ././lib/... so cwd must be APPDIR.
+cd "$APPDIR" || {
+  show_error "无法进入 ${APPDIR}"
+  exit 1
+}
+
 set +e
-"$APPRUN" "$@" >>"$LOG" 2>&1
+"$LDSO" --inhibit-cache --library-path "$libpath" "$WRAPPED" "$@" >>"$LOG" 2>&1
 status=$?
 
 if [[ "$status" -ne 0 ]]; then
