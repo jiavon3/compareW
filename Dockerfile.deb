@@ -3,6 +3,7 @@ FROM docker.m.daocloud.io/library/ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive \
     PATH="/usr/local/node/bin:/root/.cargo/bin:${PATH}" \
     CARGO_TERM_COLOR=always \
+    APPIMAGE_EXTRACT_AND_RUN=1 \
     RUSTUP_DIST_SERVER=https://rsproxy.cn \
     RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup \
     npm_config_registry=https://registry.npmmirror.com
@@ -21,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     librsvg2-dev \
     libssl-dev \
     libxdo-dev \
+    libfuse2 \
+    squashfs-tools \
     && rm -rf /var/lib/apt/lists/*
 
 COPY build-assets/node-v22.20.0-linux-x64.tar.xz /tmp/node.tar.xz
@@ -46,8 +49,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npm run tauri build -- --bundles deb \
-    && mkdir -p /out \
-    && find src-tauri/target -name '*.deb' -exec cp {} /out/ \;
+RUN npm run tauri build -- --bundles appimage \
+    && bash scripts/repack-uos-deb.sh --out /out
 
 CMD ["bash", "-lc", "ls -lh /out"]

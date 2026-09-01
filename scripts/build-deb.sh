@@ -15,7 +15,7 @@ fi
 
 mkdir -p "$OUT"
 
-echo "Building CompareW .deb in Ubuntu 22.04 (amd64)..."
+echo "Building self-contained CompareW .deb (Ubuntu 22.04 amd64, vendors WebKit 4.1)..."
 docker build --network=host --platform linux/amd64 -f "$ROOT/Dockerfile.deb" -t "$IMAGE" "$ROOT"
 
 cid="$(docker create "$IMAGE")"

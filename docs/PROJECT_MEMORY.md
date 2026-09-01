@@ -89,7 +89,7 @@ macOS 选文件夹/jar：`src-tauri/src/picker.rs`（objc2，仅 macOS）。Wind
 
 - GitHub：`wangjiafeng93/compareW`
 - Windows x64 NSIS：`.github/workflows/windows-x64.yml`（Actions 里 Package Windows x64）
-- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml`（Package UOS amd64），与本地 `Dockerfile.deb` / `scripts/build-deb.sh` 一致（Ubuntu 22.04 + webkit2gtk 4.1）
+- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml`（Package UOS amd64），与本地 `Dockerfile.deb` / `scripts/build-deb.sh` 一致。先在 Ubuntu 22.04 打 AppImage（自带 webkit2gtk 4.1），再由 `scripts/repack-uos-deb.sh` 打成不依赖 `libwebkit2gtk-4.1-0` 的 `.deb`（装到 `/opt/comparew`）。统信 UOS V20 仓库没有 4.1，不能装 Tauri 默认 deb。V20 的 glibc 是 2.28，装得上但跑不了（需要 2.34+，例如 Deepin 23 / Ubuntu 22.04 / Debian 12）。
 - 安装包未签名
 
 本地开发：`npm run tauri dev`（需 Node 20+、Rust stable）。

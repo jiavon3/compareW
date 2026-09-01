@@ -29,7 +29,10 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libssl-dev
+            libssl-dev \
+            libfuse2 \
+            squashfs-tools \
+            file
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -51,19 +54,23 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build deb
-        run: npx tauri build --bundles deb
+      - name: Build AppImage
+        run: npx tauri build --bundles appimage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+
+      - name: Repack self-contained UOS deb
+        run: bash scripts/repack-uos-deb.sh
 
       - name: List bundle output
         if: always()
         run: |
-          find src-tauri/target target -type f \( -name '*.deb' -o -path '*/bundle/*' \) 2>/dev/null || true
+          ls -lh dist-linux || true
+          find src-tauri/target target dist-linux -type f \( -name '*.deb' -o -name '*.AppImage' -o -path '*/bundle/*' \) 2>/dev/null || true
 
       - name: Upload deb
         uses: actions/upload-artifact@v5
         with:
           name: CompareW-uos-amd64
-          path: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/*/release/bundle/deb/*.deb
+          path: dist-linux/*.deb
           if-no-files-found: error
