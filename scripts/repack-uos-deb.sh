@@ -175,6 +175,12 @@ chmod 0755 "$STAGE/usr/bin/comparew" "$STAGE/opt/comparew/AppRun"
 chmod 0755 "$STAGE/DEBIAN"
 chmod 0644 "$STAGE/DEBIAN/control"
 
-dpkg-deb --root-owner-group -b "$STAGE" "$DEB_PATH"
+# Ubuntu 22.04 dpkg-deb defaults to zstd; UOS V20 dpkg cannot read control.tar.zst.
+dpkg-deb -Zgzip --root-owner-group -b "$STAGE" "$DEB_PATH"
+if ar t "$DEB_PATH" | grep -q '\.zst$'; then
+  echo "deb still contains zstd members; UOS dpkg cannot install it" >&2
+  ar t "$DEB_PATH" >&2
+  exit 1
+fi
 echo "Wrote $DEB_PATH"
 ls -lh "$DEB_PATH"
