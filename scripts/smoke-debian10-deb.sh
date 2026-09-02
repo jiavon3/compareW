@@ -59,6 +59,15 @@ apt-get install -y --no-install-recommends dconf-gsettings-backend || true
 dpkg -i /tmp/comparew.deb
 test -x /usr/bin/comparew
 test -x /opt/comparew/usr/bin/comparew
+test -f /opt/comparew/usr/lib/libcomparew-gtk-redirect.so
+
+# UOS DDE writes gtk-modules into /etc/gtk-3.0/settings.ini; GTK loads that last.
+mkdir -p /etc/gtk-3.0
+printf '%s\n' \
+  '[Settings]' \
+  'gtk-modules=gail:atk-bridge' \
+  'gtk-im-module=ibus' \
+  >/etc/gtk-3.0/settings.ini
 
 export HOME=/tmp/comparew-home
 export XDG_CACHE_HOME=/tmp/comparew-home/.cache

@@ -39,6 +39,8 @@ jobs:
             libfuse2 \
             squashfs-tools \
             file \
+            gcc \
+            libc6-dev \
             libgl1-mesa-dri \
             libegl-mesa0 \
             libnss-mdns \

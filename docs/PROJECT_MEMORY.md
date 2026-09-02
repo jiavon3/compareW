@@ -89,7 +89,7 @@ macOS 选文件夹/jar：`src-tauri/src/picker.rs`（objc2，仅 macOS）。Wind
 
 - GitHub：`wangjiafeng93/compareW`
 - Windows x64 NSIS：`.github/workflows/windows-x64.yml`（Actions 里 Package Windows x64）
-- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml` 打包后在 Debian 10 容器里冒烟（glibc 2.28 / GLib 2.58，并故意注入宿主 `GTK_MODULES` / `JSC_useWebAssembly`）。启动器直接 exec 已 patchelf 的 `/opt/comparew/usr/bin/comparew`，强制 GIO/GTK/pixbuf/IM/EGL/Vulkan 只用包内路径，并清掉未知 `JSC_*`。失败写 `~/.cache/comparew/launch.log`。Docker 冒烟复现不了内核 4.19。
+- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml` 打包后在 Debian 10 容器里冒烟（含伪造的 `/etc/gtk-3.0/settings.ini` gtk-modules）。启动器用 `LD_PRELOAD` 把宿主 GTK settings/immodules/pixbuf 缓存重定向到包内，避免 DDE 的 atk-bridge 打进 GLib 2.72。Docker 冒烟复现不了内核 4.19。
 - 安装包未签名
 
 本地开发：`npm run tauri dev`（需 Node 20+、Rust stable）。

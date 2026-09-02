@@ -165,6 +165,19 @@ printf '%s\n' \
   '# GTK+ Input Method Modules file' \
   '# CompareW UOS bundle: builtin gtk-im-context-simple only.' \
   > "$LIBDIR/gtk-3.0/3.0.0/immodules.cache"
+mkdir -p "$STAGE/opt/comparew/usr/etc/gtk-3.0"
+printf '%s\n' \
+  '[Settings]' \
+  'gtk-modules=' \
+  'gtk-im-module=gtk-im-context-simple' \
+  'gtk-enable-animations=0' \
+  > "$STAGE/opt/comparew/usr/etc/gtk-3.0/settings.ini"
+if ! command -v gcc >/dev/null 2>&1; then
+  echo "gcc is required to build libcomparew-gtk-redirect.so" >&2
+  exit 1
+fi
+gcc -shared -fPIC -O2 -o "$LIBDIR/libcomparew-gtk-redirect.so" \
+  "$ROOT/scripts/gtk-settings-redirect.c" -ldl
 
 # gdk-pixbuf loads host /usr loaders unless MODULE_FILE is a bundled cache.
 PIXBUF_DEST="$LIBDIR/gdk-pixbuf-2.0/2.10.0"
@@ -370,6 +383,8 @@ for f in \
   "$LIBDIR/gio/modules" \
   "$LIBDIR/gtk-3.0/3.0.0/immodules.cache" \
   "$LIBDIR/gdk-pixbuf-2.0/2.10.0/loaders.cache" \
+  "$LIBDIR/libcomparew-gtk-redirect.so" \
+  "$STAGE/opt/comparew/usr/etc/gtk-3.0/settings.ini" \
   "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d/50_mesa.json" \
   "$MAIN"; do
   if [[ ! -e "$f" ]]; then

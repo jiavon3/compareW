@@ -58,6 +58,7 @@ PY
 apply_isolation_env() {
   unset LD_PRELOAD GTK_MODULES GTK3_MODULES GIO_EXTRA_MODULES GTK_PATH
   unset XMODIFIERS QT_IM_MODULE GI_TYPELIB_PATH
+  unset WEBKIT_FORCE_SANDBOX
   export GTK_MODULES=""
   export GTK3_MODULES=""
   export GIO_EXTRA_MODULES=""
@@ -72,13 +73,24 @@ apply_isolation_env() {
   export GTK_PATH="$LIB/gtk-3.0"
   export GIO_MODULE_DIR="$LIB/gio/modules"
   export GTK_IM_MODULE_FILE="$LIB/gtk-3.0/3.0.0/immodules.cache"
+  export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
   export GDK_BACKEND=x11
   export APPDIR
   export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin}"
   export XDG_DATA_DIRS="$APPDIR/usr/share"
+  # GTK always reads /etc/gtk-3.0/settings.ini last; DDE puts gtk-modules there.
+  export XDG_CONFIG_HOME="$LOGDIR/xdg-config"
+  export XDG_CONFIG_DIRS="$APPDIR/usr/etc"
+  mkdir -p "$XDG_CONFIG_HOME/gtk-3.0" 2>/dev/null || true
+  printf '%s\n' \
+    '[Settings]' \
+    'gtk-modules=' \
+    'gtk-im-module=gtk-im-context-simple' \
+    >"$XDG_CONFIG_HOME/gtk-3.0/settings.ini" 2>/dev/null || true
+  if [[ -f "$LIB/libcomparew-gtk-redirect.so" ]]; then
+    export LD_PRELOAD="$LIB/libcomparew-gtk-redirect.so"
+  fi
 
-  export WEBKIT_DISABLE_SANDBOX=1
-  export WEBKIT_FORCE_SANDBOX=0
   export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
   export WEBKIT_DISABLE_COMPOSITING_MODE=1
   export WEBKIT_DISABLE_DMABUF_RENDERER=1
@@ -170,6 +182,8 @@ if [[ -d "$APPDIR/apprun-hooks" ]]; then
 fi
 
 {
+  echo "XDG_CONFIG_DIRS=$XDG_CONFIG_DIRS"
+  echo "LD_PRELOAD=${LD_PRELOAD:-}"
   echo "GIO_MODULE_DIR=$GIO_MODULE_DIR"
   echo "GTK_PATH=$GTK_PATH"
   echo "GTK_EXE_PREFIX=$GTK_EXE_PREFIX"
