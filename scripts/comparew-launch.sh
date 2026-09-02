@@ -61,8 +61,13 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-# Host LD_PRELOAD / IM modules are built against glibc 2.28.
-unset LD_PRELOAD
+# Host GTK/GIO modules and IM are built against UOS GLib 2.58; loading them
+# into bundled GTK 3.24 causes g_value_set_boxed and SIGSEGV (exit 139).
+unset LD_PRELOAD GTK_MODULES GTK3_MODULES GIO_EXTRA_MODULES GTK_PATH
+unset XMODIFIERS QT_IM_MODULE GTK_IM_MODULE_FILE
+export GTK_MODULES=""
+export GSETTINGS_BACKEND=memory
+export GTK_THEME=Adwaita
 export APPDIR
 export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin}"
 export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
@@ -71,7 +76,11 @@ export GDK_BACKEND="${GDK_BACKEND:-x11}"
 export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
 export WEBKIT_DISABLE_COMPOSITING_MODE=1
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
+# llvmpipe/JSC JIT on kernel 4.19 often SIGSEGV; use softpipe and disable JSC JIT.
 export LIBGL_ALWAYS_SOFTWARE=1
+export GALLIUM_DRIVER=softpipe
+export JSC_useJIT=0
+export JSC_useWebAssembly=0
 if [[ -d "$LIB/dri" ]]; then
   export LIBGL_DRIVERS_PATH="$LIB/dri"
 fi
@@ -105,6 +114,11 @@ if [[ -d "$APPDIR/apprun-hooks" ]]; then
   export GDK_BACKEND=x11
   export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
   export GTK_IM_MODULE=gtk-im-context-simple
+  unset GTK_MODULES GTK3_MODULES GIO_EXTRA_MODULES
+  export GTK_MODULES=""
+  export GSETTINGS_BACKEND=memory
+  export GALLIUM_DRIVER=softpipe
+  export JSC_useJIT=0
 fi
 
 libpath=""
@@ -118,6 +132,7 @@ done < <(find "$APPDIR/usr" "$APPDIR/lib" -name '*.so*' -printf '%h\n' 2>/dev/nu
 if [[ -z "$libpath" ]]; then
   libpath="$LIB"
 fi
+export LD_LIBRARY_PATH="$libpath"
 
 # WebKit rewrites helper prefixes to ././lib/... so cwd must be APPDIR.
 cd "$APPDIR" || {
@@ -126,7 +141,9 @@ cd "$APPDIR" || {
 }
 
 set +e
-"$LDSO" --inhibit-cache --library-path "$libpath" "$BIN" "$@" >>"$LOG" 2>&1
+# Do not invoke ld-linux as a program (--library-path). On V20 that SIGSEGVs.
+# usr/bin/comparew is already patchelf'd to the bundled interpreter + RPATH.
+"$BIN" "$@" >>"$LOG" 2>&1
 status=$?
 
 if [[ "$status" -ne 0 ]]; then

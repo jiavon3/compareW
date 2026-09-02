@@ -89,7 +89,7 @@ macOS 选文件夹/jar：`src-tauri/src/picker.rs`（objc2，仅 macOS）。Wind
 
 - GitHub：`wangjiafeng93/compareW`
 - Windows x64 NSIS：`.github/workflows/windows-x64.yml`（Actions 里 Package Windows x64）
-- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml`。Ubuntu 22.04 打 AppImage 后 `scripts/repack-uos-deb.sh` 打成 **UOS V20 可安装可运行** 的包：gzip、自带 WebKit 4.1 + glibc 2.35/`ld-linux`/`libnss_*`/Mesa `swrast`。启动器用包内 `ld-linux --library-path` 跑 `/opt/comparew/usr/bin/comparew`，并设置 `WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1`（新 WebKit 已忽略旧沙箱变量）。失败弹窗并写 `~/.cache/comparew/launch.log`。
+- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml`。启动器 **直接 exec** 已 patchelf 的 `/opt/comparew/usr/bin/comparew`（不要用 `ld-linux --library-path` 当命令，V20 上会 139 段错误）。`WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1`、隔离宿主 `GTK_MODULES`、`GALLIUM_DRIVER=softpipe`、`JSC_useJIT=0`。失败弹窗并写 `~/.cache/comparew/launch.log`。
 - 安装包未签名
 
 本地开发：`npm run tauri dev`（需 Node 20+、Rust stable）。
