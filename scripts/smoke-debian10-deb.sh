@@ -49,10 +49,13 @@ printf '%s\n' \
   'Acquire::AllowInsecureRepositories "true";' \
   > /etc/apt/apt.conf.d/99archive
 apt-get update -o Acquire::Check-Valid-Until=false
+# Do not install gvfs: archive.debian.org often cannot satisfy gvfs-daemons.
+# libatk-adaptor + dconf still put host GTK/GIO modules on the search path.
 apt-get install -y --no-install-recommends \
   xvfb xauth dbus-x11 fonts-dejavu-core \
-  libgtk-3-0 gvfs libatk-adaptor at-spi2-core \
+  libgtk-3-0 libatk-adaptor at-spi2-core \
   ca-certificates
+apt-get install -y --no-install-recommends dconf-gsettings-backend || true
 dpkg -i /tmp/comparew.deb
 test -x /usr/bin/comparew
 test -x /opt/comparew/usr/bin/comparew
