@@ -52,6 +52,98 @@ PY
   fi
 }
 
+# Host GTK/GIO/pixbuf/IM modules are GLib 2.58; bundled GTK is 3.24/GLib 2.72.
+# Any fallback to /usr will g_value_set_boxed and SIGSEGV (exit 139).
+# JSC treats unknown JSC_* env vars as fatal "invalid option".
+apply_isolation_env() {
+  unset LD_PRELOAD GTK_MODULES GTK3_MODULES GIO_EXTRA_MODULES GTK_PATH
+  unset XMODIFIERS QT_IM_MODULE GI_TYPELIB_PATH
+  export GTK_MODULES=""
+  export GTK3_MODULES=""
+  export GIO_EXTRA_MODULES=""
+  export GSETTINGS_BACKEND=memory
+  export GIO_USE_VFS=local
+  export GTK_THEME=Adwaita
+  export GTK_A11Y=none
+  export NO_AT_BRIDGE=1
+  export GTK_IM_MODULE=gtk-im-context-simple
+  export GTK_EXE_PREFIX="$APPDIR/usr"
+  export GTK_DATA_PREFIX="$APPDIR/usr"
+  export GTK_PATH="$LIB/gtk-3.0"
+  export GIO_MODULE_DIR="$LIB/gio/modules"
+  export GTK_IM_MODULE_FILE="$LIB/gtk-3.0/3.0.0/immodules.cache"
+  export GDK_BACKEND=x11
+  export APPDIR
+  export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin}"
+  export XDG_DATA_DIRS="$APPDIR/usr/share"
+
+  export WEBKIT_DISABLE_SANDBOX=1
+  export WEBKIT_FORCE_SANDBOX=0
+  export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
+  export WEBKIT_DISABLE_COMPOSITING_MODE=1
+  export WEBKIT_DISABLE_DMABUF_RENDERER=1
+
+  export LIBGL_ALWAYS_SOFTWARE=1
+  export GALLIUM_DRIVER=softpipe
+  export LIBGL_DRIVERS_PATH="$LIB/dri"
+  export __EGL_VENDOR_LIBRARY_DIRS="$APPDIR/usr/share/glvnd/egl_vendor.d"
+  if [[ -f "$APPDIR/usr/share/glvnd/egl_vendor.d/50_mesa.json" ]]; then
+    export __EGL_VENDOR_LIBRARY_FILENAMES="$APPDIR/usr/share/glvnd/egl_vendor.d/50_mesa.json"
+  fi
+  # Host Vulkan ICDs / GStreamer / Enchant plugins are also ABI-mixed.
+  export VK_ICD_FILENAMES="/nonexistent-comparew-vulkan.json"
+  export VK_DRIVER_FILES="/nonexistent-comparew-vulkan.json"
+  export GST_PLUGIN_SYSTEM_PATH_1_0="/nonexistent-comparew-gstreamer"
+  export GST_PLUGIN_SYSTEM_PATH="/nonexistent-comparew-gstreamer"
+  export GST_PLUGIN_PATH="/nonexistent-comparew-gstreamer"
+  export ENCHANT_MODULE_DIR="/nonexistent-comparew-enchant"
+
+  local pixbuf=""
+  local d
+  for d in \
+    "$LIB/gdk-pixbuf-2.0/2.10.0" \
+    "$LIB/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0"; do
+    if [[ -f "$d/loaders.cache" || -d "$d/loaders" ]]; then
+      pixbuf="$d"
+      break
+    fi
+  done
+  if [[ -z "$pixbuf" ]]; then
+    pixbuf="$LIB/gdk-pixbuf-2.0/2.10.0"
+  fi
+  export GDK_PIXBUF_MODULE_FILE="$pixbuf/loaders.cache"
+  export GDK_PIXBUF_MODULEDIR="$pixbuf/loaders"
+
+  if [[ -d "$LIB/girepository-1.0" ]]; then
+    export GI_TYPELIB_PATH="$LIB/girepository-1.0"
+  fi
+  local helper=""
+  for d in "$LIB/webkit2gtk-4.1" "$LIB/x86_64-linux-gnu/webkit2gtk-4.1"; do
+    if [[ -x "$d/WebKitWebProcess" ]]; then
+      helper="$d"
+      break
+    fi
+  done
+  if [[ -n "$helper" ]]; then
+    export WEBKIT_EXEC_PATH="$helper"
+  fi
+  if [[ -d "$LIB/gconv" ]]; then
+    export GCONV_PATH="$LIB/gconv"
+  fi
+  local icu=""
+  icu="$(find "$APPDIR/usr/share/icu" -name 'icudt*.dat' 2>/dev/null | head -n1 || true)"
+  if [[ -n "$icu" ]]; then
+    export ICU_DATA="$(dirname "$icu")"
+  fi
+
+  local name
+  while IFS= read -r name; do
+    [[ -z "$name" || "$name" == JSC_useJIT ]] && continue
+    unset "$name"
+  done < <(env | awk -F= '/^JSC_/ { print $1 }')
+  export JSC_useJIT=0
+}
+
 if [[ ! -x "$LDSO" || ! -e "$LIB/libc.so.6" ]]; then
   show_error "缺少打包的 glibc（${LDSO} 或 libc.so.6）。请重新安装 CompareW。"
   exit 1
@@ -61,46 +153,9 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-# Host GTK/GIO modules and IM are built against UOS GLib 2.58; loading them
-# into bundled GTK 3.24 causes g_value_set_boxed and SIGSEGV (exit 139).
-unset LD_PRELOAD GTK_MODULES GTK3_MODULES GIO_EXTRA_MODULES GTK_PATH
-unset XMODIFIERS QT_IM_MODULE GTK_IM_MODULE_FILE
-export GTK_MODULES=""
-export GSETTINGS_BACKEND=memory
-export GTK_THEME=Adwaita
-export APPDIR
-export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin}"
-export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
-export GDK_BACKEND="${GDK_BACKEND:-x11}"
-# Newer WebKitGTK ignores WEBKIT_DISABLE_SANDBOX / WEBKIT_FORCE_SANDBOX.
-export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
-export WEBKIT_DISABLE_COMPOSITING_MODE=1
-export WEBKIT_DISABLE_DMABUF_RENDERER=1
-# llvmpipe/JSC JIT on kernel 4.19 often SIGSEGV; use softpipe and disable JSC JIT.
-export LIBGL_ALWAYS_SOFTWARE=1
-export GALLIUM_DRIVER=softpipe
-export JSC_useJIT=0
-export JSC_useWebAssembly=0
-if [[ -d "$LIB/dri" ]]; then
-  export LIBGL_DRIVERS_PATH="$LIB/dri"
-fi
-if [[ -f "$APPDIR/usr/share/glvnd/egl_vendor.d/50_mesa.json" ]]; then
-  export __EGL_VENDOR_LIBRARY_FILENAMES="$APPDIR/usr/share/glvnd/egl_vendor.d/50_mesa.json"
-fi
-export NO_AT_BRIDGE=1
-export GTK_A11Y=none
-export GTK_IM_MODULE=gtk-im-context-simple
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
-if [[ -d "$LIB/gconv" ]]; then
-  export GCONV_PATH="$LIB/gconv"
-fi
-if [[ -f "$LIB/gdk-pixbuf-2.0/2.10.0/loaders.cache" ]]; then
-  export GDK_PIXBUF_MODULE_FILE="$LIB/gdk-pixbuf-2.0/2.10.0/loaders.cache"
-fi
-if [[ -d "$LIB/gio/modules" ]]; then
-  export GIO_MODULE_DIR="$LIB/gio/modules"
-fi
+apply_isolation_env
 
 if [[ -d "$APPDIR/apprun-hooks" ]]; then
   for hook in "$APPDIR/apprun-hooks"/*.sh; do
@@ -111,15 +166,20 @@ if [[ -d "$APPDIR/apprun-hooks" ]]; then
     # shellcheck disable=SC1090
     . "$hook"
   done
-  export GDK_BACKEND=x11
-  export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
-  export GTK_IM_MODULE=gtk-im-context-simple
-  unset GTK_MODULES GTK3_MODULES GIO_EXTRA_MODULES
-  export GTK_MODULES=""
-  export GSETTINGS_BACKEND=memory
-  export GALLIUM_DRIVER=softpipe
-  export JSC_useJIT=0
+  apply_isolation_env
 fi
+
+{
+  echo "GIO_MODULE_DIR=$GIO_MODULE_DIR"
+  echo "GTK_PATH=$GTK_PATH"
+  echo "GTK_EXE_PREFIX=$GTK_EXE_PREFIX"
+  echo "GTK_IM_MODULE_FILE=$GTK_IM_MODULE_FILE"
+  echo "GDK_PIXBUF_MODULE_FILE=$GDK_PIXBUF_MODULE_FILE"
+  echo "GDK_BACKEND=$GDK_BACKEND"
+  echo "WEBKIT_EXEC_PATH=${WEBKIT_EXEC_PATH:-}"
+  echo "LIBGL_DRIVERS_PATH=$LIBGL_DRIVERS_PATH"
+  echo "JSC=$(env | grep '^JSC_' | tr '\n' ' ')"
+} >>"$LOG" 2>&1 || true
 
 libpath=""
 while IFS= read -r d; do

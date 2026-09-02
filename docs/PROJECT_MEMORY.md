@@ -89,7 +89,7 @@ macOS 选文件夹/jar：`src-tauri/src/picker.rs`（objc2，仅 macOS）。Wind
 
 - GitHub：`wangjiafeng93/compareW`
 - Windows x64 NSIS：`.github/workflows/windows-x64.yml`（Actions 里 Package Windows x64）
-- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml`。启动器 **直接 exec** 已 patchelf 的 `/opt/comparew/usr/bin/comparew`（不要用 `ld-linux --library-path` 当命令，V20 上会 139 段错误）。`WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1`、隔离宿主 `GTK_MODULES`、`GALLIUM_DRIVER=softpipe`、`JSC_useJIT=0`。失败弹窗并写 `~/.cache/comparew/launch.log`。
+- UOS amd64 `.deb`：`.github/workflows/uos-amd64.yml` 打包后在 Debian 10 容器里冒烟（glibc 2.28 / GLib 2.58，并故意注入宿主 `GTK_MODULES` / `JSC_useWebAssembly`）。启动器直接 exec 已 patchelf 的 `/opt/comparew/usr/bin/comparew`，强制 GIO/GTK/pixbuf/IM/EGL/Vulkan 只用包内路径，并清掉未知 `JSC_*`。失败写 `~/.cache/comparew/launch.log`。Docker 冒烟复现不了内核 4.19。
 - 安装包未签名
 
 本地开发：`npm run tauri dev`（需 Node 20+、Rust stable）。

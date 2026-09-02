@@ -20,6 +20,12 @@ jobs:
       - name: Show revision
         run: git log -1 --oneline
 
+      - name: Check launch scripts
+        run: |
+          bash -n scripts/comparew-launch.sh
+          bash -n scripts/repack-uos-deb.sh
+          bash -n scripts/smoke-debian10-deb.sh
+
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -33,7 +39,10 @@ jobs:
             libfuse2 \
             squashfs-tools \
             file \
-            libgl1-mesa-dri
+            libgl1-mesa-dri \
+            libegl-mesa0 \
+            libnss-mdns \
+            libnss-systemd
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -62,6 +71,9 @@ jobs:
 
       - name: Repack self-contained UOS deb
         run: bash scripts/repack-uos-deb.sh
+
+      - name: Smoke-test deb on Debian 10
+        run: bash scripts/smoke-debian10-deb.sh dist-linux
 
       - name: List bundle output
         if: always()

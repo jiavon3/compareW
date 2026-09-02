@@ -57,7 +57,7 @@ CompareW is a lightweight, Beyond Compare–style desktop app for two-pane UTF-8
 
 `.class` 反编译依赖系统 `PATH` 上的 `java`。没有 Java 时文件夹比对仍可用，只是不能反编译。
 
-统信 UOS V20 默认源没有 `libwebkit2gtk-4.1-0`，UOS 包会把 WebKit 4.1 和配套 glibc 打进 `/opt/comparew`，用包内动态链接器启动。双击仍失败时看 `~/.cache/comparew/launch.log`。
+统信 UOS V20 默认源没有 `libwebkit2gtk-4.1-0`，UOS 包会把 WebKit 4.1 和配套 glibc 打进 `/opt/comparew`。二进制已 patchelf 到包内动态链接器。双击仍失败时看 `~/.cache/comparew/launch.log`。
 
 ## 本地开发
 

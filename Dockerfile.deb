@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     squashfs-tools \
     patchelf \
     libgl1-mesa-dri \
+    libegl-mesa0 \
+    libnss-mdns \
+    libnss-systemd \
     && rm -rf /var/lib/apt/lists/*
 
 COPY build-assets/node-v22.20.0-linux-x64.tar.xz /tmp/node.tar.xz

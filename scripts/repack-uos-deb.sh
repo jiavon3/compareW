@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Pack Tauri's AppImage AppDir into a .deb that can install and run on UOS V20.
 # V20 is Debian 10: no webkit2gtk 4.1, dpkg has no zstd, glibc 2.28.
-# The binary is Ubuntu 22.04 + WebKit 4.1, so the package vendors that runtime
-# and starts via the bundled ld-linux --library-path (never mix host libc 2.28).
+# The binary is Ubuntu 22.04 + WebKit 4.1, so the package vendors that runtime.
+# patchelf sets the interpreter to bundled ld-linux; do not exec ld-linux as a program.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -133,7 +133,7 @@ chmod +x "$LIBDIR/ld-linux-x86-64.so.2"
 copy_lib libc.so.6 || { echo "failed to vendor libc.so.6" >&2; exit 1; }
 for so in \
   libm.so.6 libdl.so.2 libpthread.so.0 librt.so.1 libanl.so.1 \
-  libresolv.so.2 libutil.so.1 libcrypt.so.1 \
+  libresolv.so.2 libutil.so.1 libcrypt.so.1 libatomic.so.1 \
   libthread_db.so.1 libBrokenLocale.so.1; do
   copy_lib "$so" || true
 done
@@ -143,10 +143,76 @@ for src in /lib/x86_64-linux-gnu/libnss_*.so* /usr/lib/x86_64-linux-gnu/libnss_*
   [[ -e "$src" ]] || continue
   cp -L "$src" "$LIBDIR/" || true
 done
+for so in \
+  libsoftokn3.so libfreebl3.so libfreeblpriv3.so \
+  libnssdbm3.so libnssckbi.so libnss3.so libnssutil3.so \
+  libsmime3.so libssl3.so libnspr4.so libplds4.so libplc4.so; do
+  copy_lib "$so" || true
+done
+# libnss3 dlopens these from its own directory, not via DT_NEEDED.
+if [[ -d /usr/lib/x86_64-linux-gnu/nss ]]; then
+  cp -a /usr/lib/x86_64-linux-gnu/nss/. "$LIBDIR/" || true
+fi
 
 if [[ -d /usr/lib/x86_64-linux-gnu/gconv ]]; then
   mkdir -p "$LIBDIR/gconv"
   cp -a /usr/lib/x86_64-linux-gnu/gconv/. "$LIBDIR/gconv/"
+fi
+# Empty gio/gtk module dirs so GLib/GTK do not fall back to UOS /usr/lib modules.
+# Do not copy Ubuntu gvfs/dconf gio modules: they talk to the host session.
+mkdir -p "$LIBDIR/gio/modules" "$LIBDIR/gtk-3.0/3.0.0/immodules"
+printf '%s\n' \
+  '# GTK+ Input Method Modules file' \
+  '# CompareW UOS bundle: builtin gtk-im-context-simple only.' \
+  > "$LIBDIR/gtk-3.0/3.0.0/immodules.cache"
+
+# gdk-pixbuf loads host /usr loaders unless MODULE_FILE is a bundled cache.
+PIXBUF_DEST="$LIBDIR/gdk-pixbuf-2.0/2.10.0"
+mkdir -p "$PIXBUF_DEST/loaders"
+for src in \
+  /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders \
+  /usr/lib/gdk-pixbuf-2.0/2.10.0/loaders; do
+  if [[ -d "$src" ]]; then
+    cp -a "$src"/. "$PIXBUF_DEST/loaders/"
+  fi
+done
+while IFS= read -r -d '' loader_dir; do
+  if [[ "$loader_dir" == "$PIXBUF_DEST/loaders" ]]; then
+    continue
+  fi
+  cp -a "$loader_dir"/. "$PIXBUF_DEST/loaders/"
+done < <(find "$STAGE/opt/comparew" -type d -path '*/gdk-pixbuf-2.0/2.10.0/loaders' -print0 2>/dev/null || true)
+while IFS= read -r -d '' loader_so; do
+  vendor_ldd "$loader_so"
+done < <(find "$PIXBUF_DEST/loaders" -maxdepth 1 -name '*.so' -print0 2>/dev/null || true)
+PIXBUF_QUERY=""
+for q in \
+  /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders \
+  /usr/bin/gdk-pixbuf-query-loaders; do
+  if [[ -x "$q" ]]; then
+    PIXBUF_QUERY="$q"
+    break
+  fi
+done
+if [[ -n "$PIXBUF_QUERY" ]] && compgen -G "$PIXBUF_DEST/loaders/"'*.so' >/dev/null; then
+  GDK_PIXBUF_MODULEDIR="$PIXBUF_DEST/loaders" "$PIXBUF_QUERY" \
+    | sed "s|$LIBDIR|/opt/comparew/usr/lib|g" \
+    > "$PIXBUF_DEST/loaders.cache"
+else
+  printf '%s\n' '# GdkPixbuf Image Loader Modules file' > "$PIXBUF_DEST/loaders.cache"
+fi
+
+if [[ -d /usr/share/icu ]]; then
+  mkdir -p "$STAGE/opt/comparew/usr/share/icu"
+  cp -a /usr/share/icu/. "$STAGE/opt/comparew/usr/share/icu/"
+fi
+if [[ -d /usr/share/glib-2.0/schemas ]]; then
+  mkdir -p "$STAGE/opt/comparew/usr/share/glib-2.0/schemas"
+  cp -a /usr/share/glib-2.0/schemas/. "$STAGE/opt/comparew/usr/share/glib-2.0/schemas/"
+fi
+if [[ -d /usr/lib/x86_64-linux-gnu/libproxy ]]; then
+  mkdir -p "$LIBDIR/libproxy"
+  cp -a /usr/lib/x86_64-linux-gnu/libproxy/. "$LIBDIR/libproxy/" || true
 fi
 
 # Mesa software rasterizer matching bundled libGL (UOS host dri will not load).
@@ -166,11 +232,13 @@ if [[ "$copied_dri" -eq 0 ]]; then
   echo "swrast_dri.so not found; install libgl1-mesa-dri on the build machine" >&2
   exit 1
 fi
-if [[ -f /usr/share/glvnd/egl_vendor.d/50_mesa.json ]]; then
-  mkdir -p "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d"
-  cp -L /usr/share/glvnd/egl_vendor.d/50_mesa.json \
-    "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d/"
+if [[ ! -f /usr/share/glvnd/egl_vendor.d/50_mesa.json ]]; then
+  echo "50_mesa.json not found; install libegl-mesa0 on the build machine" >&2
+  exit 1
 fi
+mkdir -p "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d"
+cp -L /usr/share/glvnd/egl_vendor.d/50_mesa.json \
+  "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d/"
 if [[ -d /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 ]]; then
   mkdir -p "$LIBDIR/x86_64-linux-gnu"
   rm -rf "$LIBDIR/x86_64-linux-gnu/webkit2gtk-4.1"
@@ -225,6 +293,7 @@ find "$STAGE/opt/comparew" -type f \( \
 chmod 0755 "$LIBDIR/ld-linux-x86-64.so.2"
 
 install -m 0755 "$ROOT/scripts/comparew-launch.sh" "$STAGE/usr/bin/comparew"
+sed -i 's/\r$//' "$STAGE/usr/bin/comparew"
 
 ICON_SRC=""
 for candidate in \
@@ -271,6 +340,8 @@ fi
 if ! grep -q '^Terminal=' "$STAGE/usr/share/applications/comparew.desktop"; then
   printf 'Terminal=false\n' >> "$STAGE/usr/share/applications/comparew.desktop"
 fi
+# DBus activation would start usr/bin/comparew without this wrapper's env.
+find "$STAGE" -path '*/dbus-1/services/*' -type f -delete 2>/dev/null || true
 
 cat > "$STAGE/DEBIAN/postinst" << 'EOF'
 #!/bin/sh
@@ -295,6 +366,11 @@ for f in \
   "$LIBDIR/ld-linux-x86-64.so.2" \
   "$LIBDIR/libstdc++.so.6" \
   "$LIBDIR/libgcc_s.so.1" \
+  "$LIBDIR/dri/swrast_dri.so" \
+  "$LIBDIR/gio/modules" \
+  "$LIBDIR/gtk-3.0/3.0.0/immodules.cache" \
+  "$LIBDIR/gdk-pixbuf-2.0/2.10.0/loaders.cache" \
+  "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d/50_mesa.json" \
   "$MAIN"; do
   if [[ ! -e "$f" ]]; then
     missing="$missing $f"
@@ -308,12 +384,29 @@ done < <(find "$STAGE/opt/comparew" -name 'libwebkit2gtk-4.1.so*' -print0 2>/dev
 if [[ -z "$webkit_so" ]]; then
   missing="$missing libwebkit2gtk-4.1.so"
 fi
+webkit_helper=""
+while IFS= read -r -d '' f; do
+  webkit_helper="$f"
+  break
+done < <(find "$STAGE/opt/comparew" -name 'WebKitWebProcess' -print0 2>/dev/null || true)
+if [[ -z "$webkit_helper" ]]; then
+  missing="$missing WebKitWebProcess"
+fi
 if [[ -n "$missing" ]]; then
   echo "UOS package is missing required files:$missing" >&2
   exit 1
 fi
 if [[ ! -x "$MAIN" || ! -x "$LIBDIR/ld-linux-x86-64.so.2" ]]; then
   echo "comparew binary or ld-linux is not executable" >&2
+  exit 1
+fi
+got_interp="$(patchelf --print-interpreter "$MAIN" 2>/dev/null || true)"
+if [[ "$got_interp" != /opt/comparew/usr/lib/ld-linux-x86-64.so.2 ]]; then
+  echo "comparew interpreter is '$got_interp', expected bundled ld-linux" >&2
+  exit 1
+fi
+if grep -E '^[[:space:]]*export[[:space:]]+JSC_useWebAssembly' "$STAGE/usr/bin/comparew" >/dev/null; then
+  echo "launch script must not export JSC_useWebAssembly" >&2
   exit 1
 fi
 
