@@ -67,11 +67,17 @@ export APPDIR
 export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin}"
 export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export GDK_BACKEND="${GDK_BACKEND:-x11}"
-export WEBKIT_DISABLE_SANDBOX=1
-export WEBKIT_FORCE_SANDBOX=0
+# Newer WebKitGTK ignores WEBKIT_DISABLE_SANDBOX / WEBKIT_FORCE_SANDBOX.
+export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
 export WEBKIT_DISABLE_COMPOSITING_MODE=1
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
 export LIBGL_ALWAYS_SOFTWARE=1
+if [[ -d "$LIB/dri" ]]; then
+  export LIBGL_DRIVERS_PATH="$LIB/dri"
+fi
+if [[ -f "$APPDIR/usr/share/glvnd/egl_vendor.d/50_mesa.json" ]]; then
+  export __EGL_VENDOR_LIBRARY_FILENAMES="$APPDIR/usr/share/glvnd/egl_vendor.d/50_mesa.json"
+fi
 export NO_AT_BRIDGE=1
 export GTK_A11Y=none
 export GTK_IM_MODULE=gtk-im-context-simple
@@ -97,7 +103,7 @@ if [[ -d "$APPDIR/apprun-hooks" ]]; then
     . "$hook"
   done
   export GDK_BACKEND=x11
-  export WEBKIT_DISABLE_SANDBOX=1
+  export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
   export GTK_IM_MODULE=gtk-im-context-simple
 fi
 

@@ -149,7 +149,28 @@ if [[ -d /usr/lib/x86_64-linux-gnu/gconv ]]; then
   cp -a /usr/lib/x86_64-linux-gnu/gconv/. "$LIBDIR/gconv/"
 fi
 
-# WebKit helpers + injected bundle (Tauri AppImage has missed these before).
+# Mesa software rasterizer matching bundled libGL (UOS host dri will not load).
+mkdir -p "$LIBDIR/dri"
+copied_dri=0
+for dri in swrast_dri.so kms_swrast_dri.so; do
+  for src in "/usr/lib/x86_64-linux-gnu/dri/$dri" "/usr/lib/dri/$dri"; do
+    if [[ -e "$src" ]]; then
+      cp -L "$src" "$LIBDIR/dri/"
+      vendor_ldd "$LIBDIR/dri/$dri"
+      copied_dri=1
+      break
+    fi
+  done
+done
+if [[ "$copied_dri" -eq 0 ]]; then
+  echo "swrast_dri.so not found; install libgl1-mesa-dri on the build machine" >&2
+  exit 1
+fi
+if [[ -f /usr/share/glvnd/egl_vendor.d/50_mesa.json ]]; then
+  mkdir -p "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d"
+  cp -L /usr/share/glvnd/egl_vendor.d/50_mesa.json \
+    "$STAGE/opt/comparew/usr/share/glvnd/egl_vendor.d/"
+fi
 if [[ -d /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 ]]; then
   mkdir -p "$LIBDIR/x86_64-linux-gnu"
   rm -rf "$LIBDIR/x86_64-linux-gnu/webkit2gtk-4.1"

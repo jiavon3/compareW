@@ -32,7 +32,8 @@ jobs:
             libssl-dev \
             libfuse2 \
             squashfs-tools \
-            file
+            file \
+            libgl1-mesa-dri
 
       - name: Setup Node
         uses: actions/setup-node@v5
