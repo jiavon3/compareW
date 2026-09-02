@@ -33,11 +33,13 @@ IMAGE="${COMPAREW_SMOKE_IMAGE:-debian:buster-slim}"
 echo "Smoke-testing $DEB_ABS on $IMAGE (glibc 2.28 / GLib 2.58)"
 
 docker pull "$IMAGE"
-docker run --rm \
+# -i is required or the heredoc never reaches the container and bash -s exits 0.
+docker run --rm -i \
   -v "$DEB_ABS:/tmp/comparew.deb:ro" \
   "$IMAGE" \
   bash -s << 'INSIDE'
 set -euo pipefail
+echo "SMOKE_INSIDE_START"
 export DEBIAN_FRONTEND=noninteractive
 printf '%s\n' \
   'deb http://archive.debian.org/debian buster main' \
