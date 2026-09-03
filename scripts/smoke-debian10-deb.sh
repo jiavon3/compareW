@@ -83,7 +83,7 @@ export JSC_useWebAssembly=0
 export GDK_BACKEND=wayland
 
 set +e
-xvfb-run -a -s '-screen 0 1280x720x24 -ac' \
+xvfb-run -a -s '-screen 0 1280x720x24 -ac +extension GLX +extension RENDER -noreset' \
   timeout --signal=TERM --kill-after=5 18 /usr/bin/comparew
 status=$?
 set -e

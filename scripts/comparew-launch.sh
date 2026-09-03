@@ -87,9 +87,8 @@ apply_isolation_env() {
     'gtk-modules=' \
     'gtk-im-module=gtk-im-context-simple' \
     >"$XDG_CONFIG_HOME/gtk-3.0/settings.ini" 2>/dev/null || true
-  if [[ -f "$LIB/libcomparew-gtk-redirect.so" ]]; then
-    export LD_PRELOAD="$LIB/libcomparew-gtk-redirect.so"
-  fi
+  # Never export LD_PRELOAD here: the .so needs glibc 2.34 and would break
+  # host env/grep/find (glibc 2.28), including the JSC_* cleanup below.
 
   export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
   export WEBKIT_DISABLE_COMPOSITING_MODE=1
@@ -151,8 +150,10 @@ apply_isolation_env() {
   local name
   while IFS= read -r name; do
     [[ -z "$name" || "$name" == JSC_useJIT ]] && continue
+    [[ "$name" == JSC_* ]] || continue
     unset "$name"
-  done < <(env | awk -F= '/^JSC_/ { print $1 }')
+  done < <(compgen -e)
+  unset JSC_useWebAssembly
   export JSC_useJIT=0
 }
 
@@ -181,9 +182,14 @@ if [[ -d "$APPDIR/apprun-hooks" ]]; then
   apply_isolation_env
 fi
 
+jsc_log=""
+while IFS= read -r name; do
+  [[ "$name" == JSC_* ]] || continue
+  jsc_log="${jsc_log}${name}=${!name} "
+done < <(compgen -e)
 {
   echo "XDG_CONFIG_DIRS=$XDG_CONFIG_DIRS"
-  echo "LD_PRELOAD=${LD_PRELOAD:-}"
+  echo "COMPAREW_GTK_REDIRECT=$LIB/libcomparew-gtk-redirect.so"
   echo "GIO_MODULE_DIR=$GIO_MODULE_DIR"
   echo "GTK_PATH=$GTK_PATH"
   echo "GTK_EXE_PREFIX=$GTK_EXE_PREFIX"
@@ -192,7 +198,7 @@ fi
   echo "GDK_BACKEND=$GDK_BACKEND"
   echo "WEBKIT_EXEC_PATH=${WEBKIT_EXEC_PATH:-}"
   echo "LIBGL_DRIVERS_PATH=$LIBGL_DRIVERS_PATH"
-  echo "JSC=$(env | grep '^JSC_' | tr '\n' ' ')"
+  echo "JSC=$jsc_log"
 } >>"$LOG" 2>&1 || true
 
 libpath=""
@@ -217,7 +223,13 @@ cd "$APPDIR" || {
 set +e
 # Do not invoke ld-linux as a program (--library-path). On V20 that SIGSEGVs.
 # usr/bin/comparew is already patchelf'd to the bundled interpreter + RPATH.
-"$BIN" "$@" >>"$LOG" 2>&1
+# Preload only this process (and children). Host zenity/python stay on glibc 2.28.
+redirect_so="$LIB/libcomparew-gtk-redirect.so"
+if [[ -f "$redirect_so" ]]; then
+  LD_PRELOAD="$redirect_so" "$BIN" "$@" >>"$LOG" 2>&1
+else
+  "$BIN" "$@" >>"$LOG" 2>&1
+fi
 status=$?
 
 if [[ "$status" -ne 0 ]]; then
