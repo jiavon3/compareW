@@ -6,8 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 
-/* Redirect host GTK config so UOS /etc/gtk-3.0/settings.ini cannot load
- * GLib 2.58 gtk-modules (gail/atk-bridge) into bundled GTK. */
+/* Redirect host GTK config and refuse host GTK/GIO plugins. UOS DDE injects
+ * atk-bridge via XSETTINGS even when /etc/gtk-3.0/settings.ini is redirected. */
 
 static const char *redirect_abs(const char *path) {
   if (path == NULL) {
@@ -54,6 +54,41 @@ static const char *redirect_at(int dirfd, const char *path) {
     return "/opt/comparew/usr/etc/gtk-3.0/settings.ini";
   }
   return path;
+}
+
+static int has_substr(const char *s, const char *needle) {
+  return s != NULL && needle != NULL && strstr(s, needle) != NULL;
+}
+
+static int should_block_dlopen(const char *filename) {
+  const char *base;
+
+  if (filename == NULL || filename[0] == '\0') {
+    return 0;
+  }
+  if (strncmp(filename, "/opt/comparew/", 14) == 0) {
+    return 0;
+  }
+  base = strrchr(filename, '/');
+  base = base != NULL ? base + 1 : filename;
+
+  if (has_substr(base, "atk-bridge") || has_substr(base, "libgail") ||
+      strcmp(base, "gail") == 0 || has_substr(base, "canberra") ||
+      has_substr(base, "overlay-scrollbar") || has_substr(base, "unity-gtk") ||
+      has_substr(base, "appmenu") || has_substr(base, "gtk3-nocsd") ||
+      has_substr(base, "im-ibus") || has_substr(base, "im-fcitx") ||
+      has_substr(base, "libibus") || has_substr(base, "gvfs") ||
+      has_substr(base, "dconfsettings") || has_substr(base, "gioremote") ||
+      has_substr(base, "giognomeproxy") || has_substr(base, "giolibproxy")) {
+    return 1;
+  }
+  if (filename[0] == '/' && strncmp(filename, "/opt/", 5) != 0) {
+    if (has_substr(filename, "/gtk-3.0/") || has_substr(filename, "/gio/modules") ||
+        has_substr(filename, "/gdk-pixbuf")) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 int open(const char *path, int flags, ...) {
@@ -113,4 +148,16 @@ FILE *fopen(const char *path, const char *mode) {
     real_fopen = (FILE *(*)(const char *, const char *))dlsym(RTLD_NEXT, "fopen");
   }
   return real_fopen(redirect_abs(path), mode);
+}
+
+void *dlopen(const char *filename, int flags) {
+  static void *(*real_dlopen)(const char *, int) = NULL;
+  if (real_dlopen == NULL) {
+    real_dlopen = (void *(*)(const char *, int))dlsym(RTLD_NEXT, "dlopen");
+  }
+  if (should_block_dlopen(filename)) {
+    fprintf(stderr, "comparew-redirect: blocked dlopen %s\n", filename);
+    return NULL;
+  }
+  return real_dlopen(filename, flags);
 }

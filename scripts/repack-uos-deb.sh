@@ -298,6 +298,21 @@ while IFS= read -r -d '' elf; do
   fi
 done < <(find "$STAGE/opt/comparew" -type f -print0)
 
+# One mapping per SONAME. Two libgobject copies in one process cause g_value_set_boxed.
+if [[ -d "$LIBDIR/x86_64-linux-gnu" ]]; then
+  while IFS= read -r -d '' so; do
+    [[ -e "$so" && ! -L "$so" ]] || continue
+    base="$(basename "$so")"
+    case "$base" in
+      ld-linux-x86-64.so.2) continue ;;
+    esac
+    if [[ -e "$LIBDIR/$base" && "$so" != "$LIBDIR/$base" ]]; then
+      rm -f "$so"
+      ln -sfn "../$base" "$so"
+    fi
+  done < <(find "$LIBDIR/x86_64-linux-gnu" -maxdepth 1 \( -name '*.so' -o -name '*.so.*' \) -print0 2>/dev/null || true)
+fi
+
 find "$STAGE/opt/comparew" -maxdepth 1 -type f \( -name 'AppRun' -o -name 'AppRun.*' \) -exec chmod 0755 {} +
 find "$STAGE/opt/comparew/usr/bin" -type f -exec chmod 0755 {} + 2>/dev/null || true
 find "$STAGE/opt/comparew" -type f \( \

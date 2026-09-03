@@ -75,6 +75,8 @@ apply_isolation_env() {
   export GTK_IM_MODULE_FILE="$LIB/gtk-3.0/3.0.0/immodules.cache"
   export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
   export GDK_BACKEND=x11
+  export XDG_CURRENT_DESKTOP=GNOME
+  unset DESKTOP_SESSION GNOME_DESKTOP_SESSION_ID DEEPIN_SESSION_TYPE
   export APPDIR
   export PATH="$APPDIR/usr/bin:${PATH:-/usr/bin}"
   export XDG_DATA_DIRS="$APPDIR/usr/share"
